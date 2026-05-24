@@ -1,5 +1,8 @@
+"use client";
+
 import Image from "next/image";
 import Link from "next/link";
+import { useState } from "react";
 
 const exDb = "https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises";
 
@@ -60,97 +63,132 @@ const chestItems: LibItem[] = [
 ];
 
 type WorkoutEx = {
-  num: string;
+  uid: string;
   name: string;
   tags: string[];
   img: string;
   sets: string;
   reps: string;
   rest: string;
-  expanded?: boolean;
+  notes?: string;
 };
 
-const workoutExercises: WorkoutEx[] = [
+const initialExercises: WorkoutEx[] = [
   {
-    num: "01",
+    uid: "ex-01",
     name: "Πιέσεις με αλτήρες σε επικλινή πάγκο",
     tags: ["Στήθος", "Ώμοι", "Compound"],
     img: `${exDb}/Incline_Dumbbell_Press/0.jpg`,
     sets: "2",
     reps: "10-12",
-    rest: "120''",
-    expanded: true,
+    rest: "120",
+    notes:
+      "Αφού κάνεις δυο σετ για ζέσταμα με λίγο φορτίο, στο πρώτο θα ήθελα να εκτελέσεις 10-12 επαναλήψεις. Στο δεύτερο, αφού εκτελέσεις τις επαναλήψεις, να βγάλεις 10 μισές κάτω και 10 μισές πάνω (drop set).",
   },
   {
-    num: "02",
+    uid: "ex-02",
     name: "Πιέσεις πάγκου με μπάρα",
     tags: ["Στήθος", "Τρικ.", "Compound"],
     img: `${exDb}/Barbell_Bench_Press_-_Medium_Grip/0.jpg`,
     sets: "4",
     reps: "8-10",
-    rest: "120''",
+    rest: "120",
   },
   {
-    num: "03",
+    uid: "ex-03",
     name: "Πτερύγια με αλτήρες σε επικλινή",
     tags: ["Στήθος", "Isolation"],
     img: `${exDb}/Dumbbell_Flyes/0.jpg`,
     sets: "3",
     reps: "12-15",
-    rest: "75''",
+    rest: "75",
   },
   {
-    num: "04",
+    uid: "ex-04",
     name: "Πιέσεις ώμων με αλτήρες",
     tags: ["Ώμοι", "Τρικ.", "Compound"],
     img: `${exDb}/Dumbbell_Shoulder_Press/0.jpg`,
     sets: "4",
     reps: "10",
-    rest: "90''",
+    rest: "90",
   },
   {
-    num: "05",
+    uid: "ex-05",
     name: "Πλάγια εκτάσεις αλτήρων",
     tags: ["Ώμοι", "Isolation"],
     img: `${exDb}/Side_Lateral_Raise/0.jpg`,
     sets: "3",
     reps: "15",
-    rest: "60''",
+    rest: "60",
   },
   {
-    num: "06",
+    uid: "ex-06",
     name: "Τρικέφαλα στο σχοινί",
     tags: ["Τρικ.", "Isolation"],
     img: `${exDb}/Triceps_Pushdown/0.jpg`,
     sets: "3",
     reps: "12",
-    rest: "60''",
+    rest: "60",
   },
   {
-    num: "07",
+    uid: "ex-07",
     name: "Push-ups (κάμψεις)",
     tags: ["Στήθος", "Σωματικού βάρους", "Finisher"],
     img: `${exDb}/Pushups/0.jpg`,
     sets: "3",
     reps: "AMRAP",
-    rest: "45''",
+    rest: "45",
   },
 ];
 
 export default function WorkoutBuilderPage() {
+  const [exercises, setExercises] = useState<WorkoutEx[]>(initialExercises);
+  const [expandedUid, setExpandedUid] = useState<string | null>("ex-01");
+
+  function addExerciseFromLib(item: LibItem) {
+    setExercises((prev) => [
+      ...prev,
+      {
+        uid: `ex-${Date.now()}`,
+        name: item.name,
+        tags: item.tags,
+        img: item.img,
+        sets: "3",
+        reps: "10",
+        rest: "90",
+      },
+    ]);
+  }
+
+  function deleteExercise(uid: string) {
+    setExercises((prev) => prev.filter((e) => e.uid !== uid));
+    if (expandedUid === uid) setExpandedUid(null);
+  }
+
+  function toggleExpand(uid: string) {
+    setExpandedUid((cur) => (cur === uid ? null : uid));
+  }
+
   return (
     <div className="min-h-screen">
       <TopBar />
       <div className="grid grid-cols-1 md:grid-cols-[320px_1fr]">
-        <Library />
+        <Library onAdd={addExerciseFromLib} />
         <main className="mx-auto w-full max-w-[920px] px-6 pb-12 pt-8 md:px-10">
-          <WorkoutHeader />
+          <WorkoutHeader count={exercises.length} />
           <div className="mt-6 flex flex-col gap-2.5">
-            {workoutExercises.map((ex) => (
-              <ExerciseCard key={ex.num} ex={ex} />
+            {exercises.map((ex, i) => (
+              <ExerciseCard
+                key={ex.uid}
+                ex={ex}
+                num={String(i + 1).padStart(2, "0")}
+                expanded={expandedUid === ex.uid}
+                onToggle={() => toggleExpand(ex.uid)}
+                onDelete={() => deleteExercise(ex.uid)}
+              />
             ))}
           </div>
-          <AddExerciseButton />
+          <AddExerciseButton onClick={() => addExerciseFromLib(frequentItems[0])} />
           <AiTip />
           <BottomBar />
         </main>
@@ -186,93 +224,38 @@ function TopBar() {
         </div>
         <h1 className="flex items-center gap-2 text-[17px] font-extrabold tracking-[-0.015em]">
           Push · Πρωτόκολλο 2
-          <button type="button" aria-label="Μετονομασία" className="text-text-3 hover:text-accent">
-            <svg
-              width="14"
-              height="14"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            >
-              <path d="M12 20h9" />
-              <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z" />
-            </svg>
-          </button>
         </h1>
       </div>
       <div className="hidden items-center gap-1.5 text-[11px] font-semibold text-text-3 lg:flex">
         <span className="h-1.5 w-1.5 rounded-full bg-success shadow-[0_0_6px_var(--success)]" />
-        Αποθηκεύτηκε <strong className="text-text-2">πριν 12 δευτ.</strong>
+        Αποθηκεύτηκε <strong className="text-text-2">τοπικά</strong>
       </div>
-      <div className="flex gap-2">
-        <button
-          type="button"
-          className="hidden items-center gap-2 rounded-[10px] bg-transparent px-3.5 py-2.5 text-[13px] font-bold text-text-2 hover:bg-surface-1 hover:text-text-1 md:flex"
+      <button
+        type="button"
+        className="flex items-center gap-2 rounded-[10px] bg-accent px-3.5 py-2.5 text-[13px] font-bold text-[#0A0A0A] shadow-[0_0_20px_rgba(197,255,0,0.3)] hover:shadow-[0_0_32px_rgba(197,255,0,0.5)]"
+      >
+        <svg
+          width="14"
+          height="14"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2.5"
+          strokeLinecap="round"
+          strokeLinejoin="round"
         >
-          <svg
-            width="14"
-            height="14"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          >
-            <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
-            <circle cx="12" cy="12" r="3" />
-          </svg>
-          Preview
-        </button>
-        <button
-          type="button"
-          className="hidden items-center gap-2 rounded-[10px] border border-border bg-surface-1 px-3.5 py-2.5 text-[13px] font-bold text-text-1 hover:border-[#303030] lg:flex"
-        >
-          <svg
-            width="14"
-            height="14"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          >
-            <rect x="3" y="3" width="18" height="18" rx="2" />
-            <line x1="9" y1="9" x2="15" y2="9" />
-            <line x1="9" y1="13" x2="15" y2="13" />
-          </svg>
-          Αποθήκευση ως template
-        </button>
-        <button
-          type="button"
-          className="flex items-center gap-2 rounded-[10px] bg-accent px-3.5 py-2.5 text-[13px] font-bold text-[#0A0A0A] shadow-[0_0_20px_rgba(197,255,0,0.3)] hover:shadow-[0_0_32px_rgba(197,255,0,0.5)]"
-        >
-          <svg
-            width="14"
-            height="14"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2.5"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          >
-            <line x1="22" y1="2" x2="11" y2="13" />
-            <polygon points="22 2 15 22 11 13 2 9 22 2" />
-          </svg>
-          Ανάθεση
-        </button>
-      </div>
+          <line x1="22" y1="2" x2="11" y2="13" />
+          <polygon points="22 2 15 22 11 13 2 9 22 2" />
+        </svg>
+        Ανάθεση
+      </button>
     </div>
   );
 }
 
-function Library() {
+function Library({ onAdd }: { onAdd: (item: LibItem) => void }) {
   const filters = ["Όλα", "Στήθος", "Πλάτη", "Ώμοι", "Πόδια", "Χέρια", "Κορμός"];
+  const [activeFilter, setActiveFilter] = useState(0);
   return (
     <aside className="sticky top-16 hidden max-h-[calc(100vh-64px)] overflow-y-auto border-r border-border bg-[#0C0C0C] p-5 md:block">
       <div className="mb-4">
@@ -298,22 +281,24 @@ function Library() {
         </div>
         <div className="flex flex-wrap gap-1.5">
           {filters.map((f, i) => (
-            <span
+            <button
+              type="button"
               key={f}
+              onClick={() => setActiveFilter(i)}
               className={`cursor-pointer rounded-full border px-2.5 py-1 text-[11px] font-bold transition-colors ${
-                i === 0
+                i === activeFilter
                   ? "border-accent bg-accent/[0.12] text-accent"
                   : "border-border bg-surface-1 text-text-2 hover:border-[#303030]"
               }`}
             >
               {f}
-            </span>
+            </button>
           ))}
         </div>
       </div>
 
-      <LibrarySection title="Συχνά Χρησιμοποιούμενα" count="12" items={frequentItems} />
-      <LibrarySection title="Στήθος (Όλα)" count="38" items={chestItems} />
+      <LibrarySection title="Συχνά Χρησιμοποιούμενα" count="12" items={frequentItems} onAdd={onAdd} />
+      <LibrarySection title="Στήθος (Όλα)" count="38" items={chestItems} onAdd={onAdd} />
     </aside>
   );
 }
@@ -322,10 +307,12 @@ function LibrarySection({
   title,
   count,
   items,
+  onAdd,
 }: {
   title: string;
   count: string;
   items: LibItem[];
+  onAdd: (item: LibItem) => void;
 }) {
   return (
     <>
@@ -337,7 +324,8 @@ function LibrarySection({
         {items.map((it) => (
           <div
             key={it.id}
-            className="group flex cursor-grab items-center gap-2.5 rounded-xl border border-border bg-surface-1 p-2 transition-all hover:translate-x-0.5 hover:border-accent"
+            className="group flex cursor-pointer items-center gap-2.5 rounded-xl border border-border bg-surface-1 p-2 transition-all hover:translate-x-0.5 hover:border-accent"
+            onClick={() => onAdd(it)}
           >
             <Image
               src={it.img}
@@ -365,6 +353,10 @@ function LibrarySection({
             <button
               type="button"
               aria-label="Πρόσθεσε"
+              onClick={(e) => {
+                e.stopPropagation();
+                onAdd(it);
+              }}
               className="flex h-[26px] w-[26px] flex-shrink-0 items-center justify-center rounded-lg border border-[#303030] bg-transparent text-text-2 group-hover:border-accent group-hover:bg-accent group-hover:text-[#0A0A0A]"
             >
               <svg
@@ -388,7 +380,7 @@ function LibrarySection({
   );
 }
 
-function WorkoutHeader() {
+function WorkoutHeader({ count }: { count: number }) {
   return (
     <div className="mb-7">
       <div className="mb-3 inline-flex items-center gap-1.5 rounded-full border border-accent/20 bg-accent/[0.12] px-2.5 py-[5px] text-[10px] font-extrabold uppercase tracking-[0.12em] text-accent">
@@ -422,7 +414,7 @@ function WorkoutHeader() {
               <line x1="4" y1="15" x2="20" y2="15" />
             </svg>
           }
-          val="7"
+          val={String(count)}
           unit="ασκήσεις"
           label="Σύνολο"
         />
@@ -442,7 +434,7 @@ function WorkoutHeader() {
               <polyline points="12 6 12 12 16 14" />
             </svg>
           }
-          val="~60"
+          val={`~${Math.max(20, count * 8)}`}
           unit="'"
           label="Διάρκεια"
         />
@@ -461,7 +453,7 @@ function WorkoutHeader() {
               <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z" />
             </svg>
           }
-          val="~520"
+          val={`~${count * 75}`}
           unit="kcal"
           label="Καύση"
           last
@@ -539,16 +531,32 @@ function AssignedBadge() {
   );
 }
 
-function ExerciseCard({ ex }: { ex: WorkoutEx }) {
+function ExerciseCard({
+  ex,
+  num,
+  expanded,
+  onToggle,
+  onDelete,
+}: {
+  ex: WorkoutEx;
+  num: string;
+  expanded: boolean;
+  onToggle: () => void;
+  onDelete: () => void;
+}) {
   return (
     <div
       className={`overflow-hidden rounded-2xl border transition-all ${
-        ex.expanded
+        expanded
           ? "border-accent shadow-[0_0_0_1px_var(--accent-dim)]"
           : "border-border hover:border-[#303030]"
       } bg-surface-1`}
     >
-      <div className="flex items-center gap-3.5 p-3">
+      <button
+        type="button"
+        onClick={onToggle}
+        className="flex w-full items-center gap-3.5 p-3 text-left"
+      >
         <div className="cursor-grab p-1 text-text-3 hover:text-accent">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
             <circle cx="8" cy="6" r="1.5" />
@@ -561,12 +569,12 @@ function ExerciseCard({ ex }: { ex: WorkoutEx }) {
         </div>
         <div
           className={`flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-lg font-mono text-xs font-extrabold ${
-            ex.expanded
+            expanded
               ? "bg-accent text-[#0A0A0A]"
               : "bg-surface-3 text-text-2"
           }`}
         >
-          {ex.num}
+          {num}
         </div>
         <Image
           src={ex.img}
@@ -594,13 +602,12 @@ function ExerciseCard({ ex }: { ex: WorkoutEx }) {
         <div className="hidden gap-4 lg:flex">
           <ConfigCell label="ΣΕΤ" val={ex.sets} />
           <ConfigCell label="ΕΠΑΝ." val={ex.reps} />
-          <ConfigCell label="REST" val={ex.rest} />
+          <ConfigCell label="REST" val={`${ex.rest}''`} />
         </div>
         <div className="flex gap-1">
-          <button
-            type="button"
-            aria-label={ex.expanded ? "Σύμπτυξη" : "Επέκταση"}
-            className="flex h-[30px] w-[30px] items-center justify-center rounded-lg border border-border text-text-3 hover:border-[#303030] hover:text-text-1"
+          <span
+            aria-hidden
+            className="flex h-[30px] w-[30px] items-center justify-center rounded-lg border border-border text-text-3"
           >
             <svg
               width="14"
@@ -612,17 +619,21 @@ function ExerciseCard({ ex }: { ex: WorkoutEx }) {
               strokeLinecap="round"
               strokeLinejoin="round"
             >
-              {ex.expanded ? (
+              {expanded ? (
                 <polyline points="18 15 12 9 6 15" />
               ) : (
                 <polyline points="6 9 12 15 18 9" />
               )}
             </svg>
-          </button>
-          <button
-            type="button"
+          </span>
+          <span
+            role="button"
             aria-label="Διαγραφή"
-            className="flex h-[30px] w-[30px] items-center justify-center rounded-lg border border-border text-text-3 hover:border-danger hover:text-danger"
+            onClick={(e) => {
+              e.stopPropagation();
+              onDelete();
+            }}
+            className="flex h-[30px] w-[30px] cursor-pointer items-center justify-center rounded-lg border border-border text-text-3 hover:border-danger hover:text-danger"
           >
             <svg
               width="14"
@@ -637,19 +648,16 @@ function ExerciseCard({ ex }: { ex: WorkoutEx }) {
               <polyline points="3 6 5 6 21 6" />
               <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
             </svg>
-          </button>
+          </span>
         </div>
-      </div>
+      </button>
 
-      {ex.expanded && (
+      {expanded && (
         <div className="px-3.5 pb-4 pl-[70px]">
           <div className="mb-3.5 grid grid-cols-2 gap-2.5 lg:grid-cols-4">
             <ConfigInput label="Σετ" defaultValue={ex.sets} />
             <ConfigInput label="Επαναλήψεις" defaultValue={ex.reps} />
-            <ConfigInput
-              label="Ξεκούραση (sec)"
-              defaultValue={ex.rest.replace(/'/g, "")}
-            />
+            <ConfigInput label="Ξεκούραση (sec)" defaultValue={ex.rest} />
             <ConfigInput label="Tempo" defaultValue="2-0-2-0" />
           </div>
           <div>
@@ -660,7 +668,8 @@ function ExerciseCard({ ex }: { ex: WorkoutEx }) {
               </span>
             </div>
             <textarea
-              defaultValue="Αφού κάνεις δυο σετ για ζέσταμα με λίγο φορτίο, στο πρώτο θα ήθελα να εκτελέσεις 10-12 επαναλήψεις. Στο δεύτερο, αφού εκτελέσεις τις επαναλήψεις, να βγάλεις 10 μισές κάτω και 10 μισές πάνω (drop set)."
+              defaultValue={ex.notes ?? ""}
+              placeholder="Π.χ. Στο τελευταίο σετ βγάλε drop set..."
               className="min-h-[70px] w-full resize-y rounded-[10px] border border-border bg-surface-2 p-3 text-[13px] leading-[1.5] text-text-1 outline-none focus:border-accent"
             />
           </div>
@@ -703,10 +712,11 @@ function ConfigInput({
   );
 }
 
-function AddExerciseButton() {
+function AddExerciseButton({ onClick }: { onClick: () => void }) {
   return (
     <button
       type="button"
+      onClick={onClick}
       className="mt-3 flex w-full items-center justify-center gap-2 rounded-2xl border-[1.5px] border-dashed border-[#303030] bg-transparent p-[18px] text-[13px] font-bold text-text-2 transition-all hover:border-accent hover:bg-accent/[0.03] hover:text-accent"
     >
       <svg
@@ -722,7 +732,7 @@ function AddExerciseButton() {
         <line x1="12" y1="5" x2="12" y2="19" />
         <line x1="5" y1="12" x2="19" y2="12" />
       </svg>
-      Πρόσθεσε άσκηση · σύρε από τη βιβλιοθήκη ή κλικ εδώ
+      Πρόσθεσε άσκηση · κλικ στη βιβλιοθήκη ή εδώ
     </button>
   );
 }
@@ -750,12 +760,6 @@ function AiTip() {
           <circle cx="12" cy="12" r="4" />
           <line x1="12" y1="2" x2="12" y2="4" />
           <line x1="12" y1="20" x2="12" y2="22" />
-          <line x1="4.93" y1="4.93" x2="6.34" y2="6.34" />
-          <line x1="17.66" y1="17.66" x2="19.07" y2="19.07" />
-          <line x1="2" y1="12" x2="4" y2="12" />
-          <line x1="20" y1="12" x2="22" y2="12" />
-          <line x1="4.93" y1="19.07" x2="6.34" y2="17.66" />
-          <line x1="17.66" y1="6.34" x2="19.07" y2="4.93" />
         </svg>
       </div>
       <div>
@@ -770,21 +774,7 @@ function AiTip() {
           <strong className="font-bold text-text-1">
             1 άσκηση για posterior delts
           </strong>{" "}
-          (face pulls) για ισορροπία και προστασία ώμων.
-        </div>
-        <div className="mt-2.5 flex gap-2">
-          <button
-            type="button"
-            className="rounded-lg border border-accent bg-accent px-2.5 py-1.5 text-[11px] font-bold text-[#0A0A0A]"
-          >
-            + Πρόσθεσε Face Pulls
-          </button>
-          <button
-            type="button"
-            className="rounded-lg border border-border bg-surface-2 px-2.5 py-1.5 text-[11px] font-bold text-text-1"
-          >
-            Άγνοια
-          </button>
+          (face pulls) για ισορροπία.
         </div>
       </div>
     </div>
@@ -810,8 +800,7 @@ function BottomBar() {
           <line x1="12" y1="8" x2="12" y2="12" />
           <line x1="12" y1="16" x2="12.01" y2="16" />
         </svg>
-        Οι αλλαγές αποθηκεύονται αυτόματα και εμφανίζονται αμέσως στους
-        ανατεθειμένους πελάτες
+        Οι αλλαγές αποθηκεύονται τοπικά μέχρι να βάλουμε database
       </div>
       <button
         type="button"
@@ -830,7 +819,7 @@ function BottomBar() {
           <line x1="22" y1="2" x2="11" y2="13" />
           <polygon points="22 2 15 22 11 13 2 9 22 2" />
         </svg>
-        Ανάθεση σε 5 ακόμα πελάτες
+        Ανάθεση σε πελάτες
       </button>
     </div>
   );

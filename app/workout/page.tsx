@@ -1,5 +1,8 @@
+"use client";
+
 import Image from "next/image";
 import Link from "next/link";
+import { useEffect, useState } from "react";
 import { PhoneFrame } from "../_components/PhoneFrame";
 
 type SetState = "done" | "active" | "pending";
@@ -9,21 +12,57 @@ type WorkoutSet = {
   reps: string;
   repsUnit: string;
   weight: string;
-  state: SetState;
 };
 
-const sets: WorkoutSet[] = [
-  { num: "01", reps: "12", repsUnit: "reps", weight: "22.5", state: "done" },
-  { num: "02", reps: "10", repsUnit: "reps", weight: "25.0", state: "done" },
-  { num: "03", reps: "10", repsUnit: "target", weight: "25.0", state: "active" },
+const initialSets: WorkoutSet[] = [
+  { num: "01", reps: "12", repsUnit: "reps", weight: "22.5" },
+  { num: "02", reps: "10", repsUnit: "reps", weight: "25.0" },
+  { num: "03", reps: "10", repsUnit: "target", weight: "25.0" },
 ];
 
 export default function WorkoutPage() {
+  const [doneIdx, setDoneIdx] = useState(2); // first 2 sets are done initially
+  const [restActive, setRestActive] = useState(true);
+
+  const states: SetState[] = initialSets.map((_, i) => {
+    if (i < doneIdx) return "done";
+    if (i === doneIdx) return "active";
+    return "pending";
+  });
+
+  const completedCount = doneIdx;
+  const totalSets = initialSets.length;
+  const allDone = doneIdx >= totalSets;
+
+  // overall workout progress: 3/7 exercises + sets within current exercise
+  const overallExercise = 3; // current exercise index (1-based)
+  const totalExercises = 7;
+  const exerciseProgress = (completedCount / totalSets) * (1 / totalExercises);
+  const progressPct = Math.min(
+    100,
+    Math.round(((overallExercise - 1) / totalExercises + exerciseProgress) * 100),
+  );
+
+  function completeCurrentSet() {
+    if (doneIdx < totalSets) {
+      setDoneIdx((i) => i + 1);
+      setRestActive(true);
+    }
+  }
+
+  function toggleSet(i: number) {
+    if (i < doneIdx) {
+      setDoneIdx(i); // uncheck this and following
+    } else if (i === doneIdx) {
+      completeCurrentSet();
+    }
+  }
+
   return (
     <PhoneFrame>
       <div className="relative z-[1] pb-12">
         <StatusBar />
-        <Header />
+        <Header progressPct={progressPct} />
 
         <div className="px-5 pt-4">
           <div className="mb-2.5 flex items-center gap-2">
@@ -44,10 +83,22 @@ export default function WorkoutPage() {
         </div>
 
         <ExerciseVisual />
-        <SetsList />
-        <CompleteButton />
+
+        <SetsList sets={initialSets} states={states} onToggle={toggleSet} />
+
+        <CompleteButton
+          allDone={allDone}
+          onComplete={completeCurrentSet}
+          completedCount={completedCount}
+          totalSets={totalSets}
+        />
+
         <TrainerNote />
-        <RestTimer />
+
+        {restActive && doneIdx > 0 && !allDone && (
+          <RestTimer onSkip={() => setRestActive(false)} />
+        )}
+
         <NextExercise />
       </div>
     </PhoneFrame>
@@ -63,7 +114,7 @@ function StatusBar() {
   );
 }
 
-function Header() {
+function Header({ progressPct }: { progressPct: number }) {
   return (
     <div className="flex items-center justify-between gap-3 px-4 pb-3.5 pt-2">
       <Link
@@ -90,8 +141,8 @@ function Header() {
         </div>
         <div className="h-1 w-full overflow-hidden rounded-sm bg-surface-3">
           <div
-            className="h-full rounded-sm bg-accent shadow-[0_0_8px_var(--accent)]"
-            style={{ width: "42%" }}
+            className="h-full rounded-sm bg-accent shadow-[0_0_8px_var(--accent)] transition-[width] duration-300"
+            style={{ width: `${progressPct}%` }}
           />
         </div>
       </div>
@@ -227,7 +278,15 @@ function VisualBtn({
   );
 }
 
-function SetsList() {
+function SetsList({
+  sets,
+  states,
+  onToggle,
+}: {
+  sets: WorkoutSet[];
+  states: SetState[];
+  onToggle: (i: number) => void;
+}) {
   return (
     <div className="px-5 pb-4 pt-6">
       <div className="grid grid-cols-[36px_1fr_1fr_60px] gap-2 px-3 pb-2 text-[10px] font-bold uppercase tracking-[0.12em] text-text-3">
@@ -236,31 +295,39 @@ function SetsList() {
         <span>ΒΑΡΟΣ</span>
         <span />
       </div>
-      {sets.map((s) => (
-        <SetRow key={s.num} set={s} />
+      {sets.map((s, i) => (
+        <SetRow key={s.num} set={s} state={states[i]} onClick={() => onToggle(i)} />
       ))}
     </div>
   );
 }
 
-function SetRow({ set }: { set: WorkoutSet }) {
+function SetRow({
+  set,
+  state,
+  onClick,
+}: {
+  set: WorkoutSet;
+  state: SetState;
+  onClick: () => void;
+}) {
   const base =
-    "mb-2 grid grid-cols-[36px_1fr_1fr_60px] items-center gap-2 rounded-2xl border px-3 py-3.5 transition-all";
+    "mb-2 grid grid-cols-[36px_1fr_1fr_60px] items-center gap-2 rounded-2xl border px-3 py-3.5 transition-all cursor-pointer";
   const variant =
-    set.state === "done"
+    state === "done"
       ? "border-border bg-surface-1 opacity-60"
-      : set.state === "active"
+      : state === "active"
       ? "border-accent bg-surface-2 shadow-[0_0_0_1px_var(--accent),0_0_24px_rgba(197,255,0,0.15)]"
       : "border-border bg-surface-1";
-  const numColor = set.state === "active" ? "text-accent" : "text-text-2";
+  const numColor = state === "active" ? "text-accent" : "text-text-2";
   const valColor =
-    set.state === "active"
+    state === "active"
       ? "text-accent"
-      : set.state === "done"
+      : state === "done"
       ? "text-text-2"
       : "text-text-1";
   return (
-    <div className={`${base} ${variant}`}>
+    <button type="button" onClick={onClick} className={`w-full text-left ${base} ${variant}`}>
       <div className={`font-mono text-sm font-extrabold ${numColor}`}>
         {set.num}
       </div>
@@ -278,14 +345,14 @@ function SetRow({ set }: { set: WorkoutSet }) {
       </div>
       <div
         className={`ml-auto flex h-7 w-7 items-center justify-center rounded-lg border-[1.5px] ${
-          set.state === "done"
+          state === "done"
             ? "border-accent bg-accent text-[#0A0A0A]"
-            : set.state === "active"
+            : state === "active"
             ? "border-accent"
             : "border-surface-3"
         }`}
       >
-        {set.state === "done" && (
+        {state === "done" && (
           <svg
             width="14"
             height="14"
@@ -300,17 +367,38 @@ function SetRow({ set }: { set: WorkoutSet }) {
           </svg>
         )}
       </div>
-    </div>
+    </button>
   );
 }
 
-function CompleteButton() {
+function CompleteButton({
+  allDone,
+  onComplete,
+  completedCount,
+  totalSets,
+}: {
+  allDone: boolean;
+  onComplete: () => void;
+  completedCount: number;
+  totalSets: number;
+}) {
+  if (allDone) {
+    return (
+      <Link
+        href="/home"
+        className="mx-5 mt-4 flex w-[calc(100%-40px)] items-center justify-center gap-2.5 rounded-2xl border border-accent bg-accent/[0.12] p-4 text-[13px] font-extrabold uppercase tracking-[0.06em] text-accent"
+      >
+        Άσκηση ολοκληρώθηκε ✓ Συνέχεια
+      </Link>
+    );
+  }
   return (
     <button
       type="button"
-      className="mx-5 mt-4 flex w-[calc(100%-40px)] items-center justify-center gap-2.5 rounded-2xl bg-accent p-4 text-[13px] font-extrabold uppercase tracking-[0.06em] text-[#0A0A0A] shadow-[0_0_36px_rgba(197,255,0,0.35)]"
+      onClick={onComplete}
+      className="mx-5 mt-4 flex w-[calc(100%-40px)] items-center justify-center gap-2.5 rounded-2xl bg-accent p-4 text-[13px] font-extrabold uppercase tracking-[0.06em] text-[#0A0A0A] shadow-[0_0_36px_rgba(197,255,0,0.35)] hover:shadow-[0_0_50px_rgba(197,255,0,0.55)]"
     >
-      Ολοκλήρωση σετ
+      Ολοκλήρωση σετ {completedCount + 1}/{totalSets}
       <svg
         width="14"
         height="14"
@@ -354,7 +442,19 @@ function TrainerNote() {
   );
 }
 
-function RestTimer() {
+function RestTimer({ onSkip }: { onSkip: () => void }) {
+  const [seconds, setSeconds] = useState(120);
+
+  useEffect(() => {
+    const id = setInterval(() => {
+      setSeconds((s) => (s > 0 ? s - 1 : 0));
+    }, 1000);
+    return () => clearInterval(id);
+  }, []);
+
+  const mm = String(Math.floor(seconds / 60)).padStart(2, "0");
+  const ss = String(seconds % 60).padStart(2, "0");
+
   return (
     <div className="mx-5 mt-4 flex items-center justify-between rounded-2xl border border-[#2E2E2E] bg-gradient-to-br from-[#1F1F1F] to-[#111] p-4">
       <div className="flex items-center gap-3">
@@ -378,13 +478,14 @@ function RestTimer() {
             Ξεκούραση
           </div>
           <div className="mt-0.5 font-mono text-[22px] font-extrabold tracking-[-0.02em]">
-            02:00
+            {mm}:{ss}
           </div>
         </div>
       </div>
       <button
         type="button"
-        className="rounded-[10px] border border-border bg-surface-2 px-4 py-2.5 text-xs font-bold text-text-1"
+        onClick={onSkip}
+        className="rounded-[10px] border border-border bg-surface-2 px-4 py-2.5 text-xs font-bold text-text-1 hover:border-accent hover:text-accent"
       >
         Παράλειψη
       </button>
