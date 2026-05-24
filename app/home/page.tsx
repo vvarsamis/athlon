@@ -2,13 +2,34 @@ import Image from "next/image";
 import Link from "next/link";
 import { PhoneFrame } from "../_components/PhoneFrame";
 import { BottomNav } from "../_components/BottomNav";
+import { LogoutButton } from "../_components/LogoutButton";
+import { createClient } from "../../lib/supabase/server";
 
-export default function HomePage() {
+function firstName(meta: { full_name?: string } | undefined, email: string | undefined) {
+  const fn = meta?.full_name?.trim();
+  if (fn) return fn.split(/\s+/)[0];
+  if (email) return email.split("@")[0];
+  return "αθλητή";
+}
+
+function vocative(name: string) {
+  // simple Greek vocative for common male names ending in -ς
+  if (/ς$/.test(name)) return name.slice(0, -1);
+  return name;
+}
+
+export default async function HomePage() {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  const name = vocative(firstName(user?.user_metadata, user?.email));
+
   return (
     <PhoneFrame>
       <div className="relative z-[1] pb-[120px]">
         <StatusBar />
-        <Header />
+        <Header name={name} />
         <StreakCard />
 
         <SectionTitle title="ΣΗΜΕΡΑ · ΔΕΥΤΕΡΑ 25 ΜΑΪ" />
@@ -41,14 +62,14 @@ function StatusBar() {
   );
 }
 
-function Header() {
+function Header({ name }: { name: string }) {
   return (
     <div className="flex items-center justify-between px-5 pb-4 pt-2">
       <div className="flex items-center gap-3">
         <div className="relative h-[46px] w-[46px] overflow-hidden rounded-full border-2 border-accent bg-surface-2 shadow-[0_0_16px_rgba(197,255,0,0.35)]">
           <Image
             src="https://randomuser.me/api/portraits/men/45.jpg"
-            alt="Βασίλης"
+            alt={name}
             width={46}
             height={46}
             className="h-full w-full object-cover"
@@ -58,7 +79,7 @@ function Header() {
         <div>
           <div className="text-xs font-medium text-text-3">Καλημέρα,</div>
           <div className="mt-px text-[17px] font-extrabold tracking-[-0.01em]">
-            Βασίλη
+            {name}
           </div>
         </div>
       </div>
@@ -83,6 +104,7 @@ function Header() {
           </svg>
           <span className="absolute right-[9px] top-[9px] h-2 w-2 rounded-full border-2 border-surface-1 bg-accent shadow-[0_0_8px_var(--accent)]" />
         </button>
+        <LogoutButton />
       </div>
     </div>
   );

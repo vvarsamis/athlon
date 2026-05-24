@@ -1,13 +1,34 @@
 import Image from "next/image";
 import Link from "next/link";
+import { LogoutButton } from "../_components/LogoutButton";
+import { createClient } from "../../lib/supabase/server";
 
-export default function TrainerDashboardPage() {
+function firstName(meta: { full_name?: string } | undefined, email: string | undefined) {
+  const fn = meta?.full_name?.trim();
+  if (fn) return fn;
+  if (email) return email.split("@")[0];
+  return "Trainer";
+}
+
+function vocative(name: string) {
+  if (/ς$/.test(name)) return name.slice(0, -1);
+  return name;
+}
+
+export default async function TrainerDashboardPage() {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  const fullName = firstName(user?.user_metadata, user?.email);
+  const firstWord = vocative(fullName.split(/\s+/)[0]);
+
   return (
     <div className="grid min-h-screen grid-cols-1 md:grid-cols-[240px_1fr]">
-      <Sidebar />
+      <Sidebar fullName={fullName} email={user?.email ?? ""} />
       <main className="min-w-0 px-4 pb-12 pt-6 md:px-8">
         <DemoBanner />
-        <TopBar />
+        <TopBar greeting={firstWord} />
         <StatsRow />
         <div className="grid grid-cols-1 gap-5 lg:grid-cols-[1.6fr_1fr]">
           <ActivityPanel />
@@ -22,7 +43,7 @@ export default function TrainerDashboardPage() {
   );
 }
 
-function Sidebar() {
+function Sidebar({ fullName, email }: { fullName: string; email: string }) {
   return (
     <aside className="sticky top-0 hidden h-screen flex-col border-r border-border bg-[#080808] p-3.5 md:flex">
       <div className="mb-4 border-b border-border px-3 pb-6 pt-2">
@@ -192,33 +213,21 @@ function Sidebar() {
       </NavSection>
 
       <div className="mt-auto border-t border-border pt-4">
-        <div className="flex cursor-pointer items-center gap-2.5 rounded-[10px] p-2 hover:bg-surface-1">
+        <div className="flex items-center gap-2.5 rounded-[10px] p-2">
           <Image
             src="https://randomuser.me/api/portraits/men/72.jpg"
-            alt="Θάνος"
+            alt={fullName}
             width={32}
             height={32}
             className="h-8 w-8 rounded-full border-[1.5px] border-accent object-cover"
           />
           <div className="min-w-0 flex-1">
             <div className="text-[13px] font-bold tracking-[-0.01em]">
-              Θάνος Αλιμπάκης
+              {fullName}
             </div>
-            <div className="truncate text-[11px] text-text-3">
-              thanos@maxfitness.gr
-            </div>
+            <div className="truncate text-[11px] text-text-3">{email}</div>
           </div>
-          <svg
-            width="14"
-            height="14"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-            className="text-text-3"
-          >
-            <polyline points="6 9 12 15 18 9" />
-          </svg>
+          <LogoutButton />
         </div>
       </div>
     </aside>
@@ -292,12 +301,12 @@ function DemoBanner() {
   );
 }
 
-function TopBar() {
+function TopBar({ greeting }: { greeting: string }) {
   return (
     <div className="mb-7 flex flex-wrap items-center justify-between gap-4">
       <div>
         <h1 className="text-[28px] font-extrabold tracking-[-0.025em]">
-          Καλημέρα, Θάνο <span className="text-accent">·</span>
+          Καλημέρα, {greeting} <span className="text-accent">·</span>
         </h1>
         <p className="mt-1 text-sm text-text-2">
           23 ενεργοί πελάτες · 12 προπονήσεις σήμερα · 3 χρειάζονται προσοχή
