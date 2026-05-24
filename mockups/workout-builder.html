@@ -1,0 +1,1220 @@
+<!DOCTYPE html>
+<html lang="el">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Athlon — Workout Builder</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@500;700;800&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0A0A0A;
+    --surface-1: #131313;
+    --surface-2: #1A1A1A;
+    --surface-3: #242424;
+    --border: #232323;
+    --border-strong: #303030;
+    --text-1: #FAFAFA;
+    --text-2: #A1A1A1;
+    --text-3: #6B6B6B;
+    --accent: #C5FF00;
+    --accent-dim: rgba(197, 255, 0, 0.12);
+    --accent-glow: rgba(197, 255, 0, 0.4);
+    --danger: #FF4D4D;
+    --success: #4ADE80;
+    --warning: #FBBF24;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body {
+    background: var(--bg);
+    color: var(--text-1);
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+    min-height: 100vh;
+    -webkit-font-smoothing: antialiased;
+  }
+  /* TOP BAR */
+  .topbar {
+    height: 64px;
+    background: #080808;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    padding: 0 24px;
+    gap: 16px;
+    position: sticky;
+    top: 0;
+    z-index: 50;
+  }
+  .back-btn {
+    width: 38px;
+    height: 38px;
+    border-radius: 10px;
+    background: var(--surface-1);
+    border: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--text-1);
+    text-decoration: none;
+    cursor: pointer;
+  }
+  .topbar .title-area {
+    flex: 1;
+    min-width: 0;
+  }
+  .breadcrumb {
+    font-size: 11px;
+    color: var(--text-3);
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    font-weight: 700;
+    margin-bottom: 2px;
+  }
+  .breadcrumb .accent { color: var(--accent); }
+  .topbar h1 {
+    font-size: 17px;
+    font-weight: 800;
+    letter-spacing: -0.015em;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .topbar h1 .edit-icon {
+    color: var(--text-3);
+    cursor: pointer;
+  }
+  .topbar h1 .edit-icon:hover { color: var(--accent); }
+  .auto-save {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    color: var(--text-3);
+    font-size: 11px;
+    font-weight: 600;
+  }
+  .auto-save .dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--success);
+    box-shadow: 0 0 6px var(--success);
+  }
+  .topbar-actions {
+    display: flex;
+    gap: 8px;
+  }
+  .btn {
+    border-radius: 10px;
+    padding: 9px 14px;
+    font-size: 13px;
+    font-weight: 700;
+    cursor: pointer;
+    font-family: inherit;
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    border: none;
+    transition: all 0.15s;
+  }
+  .btn-primary {
+    background: var(--accent);
+    color: #0A0A0A;
+    box-shadow: 0 0 20px rgba(197, 255, 0, 0.3);
+  }
+  .btn-primary:hover { box-shadow: 0 0 32px rgba(197, 255, 0, 0.5); }
+  .btn-secondary {
+    background: var(--surface-1);
+    color: var(--text-1);
+    border: 1px solid var(--border);
+  }
+  .btn-secondary:hover { border-color: var(--border-strong); }
+  .btn-ghost {
+    background: transparent;
+    color: var(--text-2);
+  }
+  .btn-ghost:hover { color: var(--text-1); background: var(--surface-1); }
+
+  /* LAYOUT */
+  .builder {
+    display: grid;
+    grid-template-columns: 320px 1fr;
+    min-height: calc(100vh - 64px);
+  }
+
+  /* LIBRARY */
+  .library {
+    background: #0C0C0C;
+    border-right: 1px solid var(--border);
+    padding: 20px;
+    overflow-y: auto;
+    max-height: calc(100vh - 64px);
+    position: sticky;
+    top: 64px;
+  }
+  .library-header {
+    margin-bottom: 16px;
+  }
+  .library-header h2 {
+    font-size: 13px;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    color: var(--text-3);
+    font-weight: 800;
+    margin-bottom: 12px;
+  }
+  .search-wrap {
+    position: relative;
+    margin-bottom: 12px;
+  }
+  .search-wrap svg {
+    position: absolute;
+    left: 12px;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 14px;
+    height: 14px;
+    color: var(--text-3);
+  }
+  .search-box {
+    width: 100%;
+    background: var(--surface-1);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 10px 12px 10px 34px;
+    color: var(--text-1);
+    font-size: 13px;
+    font-family: inherit;
+  }
+  .search-box::placeholder { color: var(--text-3); }
+  .filter-chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-bottom: 18px;
+  }
+  .chip {
+    padding: 5px 10px;
+    background: var(--surface-1);
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--text-2);
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+  .chip:hover { border-color: var(--border-strong); }
+  .chip.active {
+    background: var(--accent-dim);
+    border-color: var(--accent);
+    color: var(--accent);
+  }
+  .lib-section-title {
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.14em;
+    color: var(--text-3);
+    font-weight: 700;
+    margin: 14px 0 8px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  .lib-section-title .count {
+    color: var(--text-3);
+    font-family: 'JetBrains Mono', monospace;
+    font-weight: 800;
+  }
+  .lib-list {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+  .lib-item {
+    background: var(--surface-1);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 8px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    cursor: grab;
+    transition: all 0.15s;
+  }
+  .lib-item:hover {
+    border-color: var(--accent);
+    transform: translateX(2px);
+  }
+  .lib-item .thumb {
+    width: 44px;
+    height: 44px;
+    border-radius: 8px;
+    background: #fff;
+    flex-shrink: 0;
+    object-fit: cover;
+  }
+  .lib-item .info {
+    flex: 1;
+    min-width: 0;
+  }
+  .lib-item .name {
+    font-size: 13px;
+    font-weight: 700;
+    letter-spacing: -0.01em;
+    line-height: 1.2;
+    margin-bottom: 3px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .lib-item .tags {
+    display: flex;
+    gap: 4px;
+  }
+  .lib-item .tag {
+    font-size: 9px;
+    padding: 2px 6px;
+    background: var(--surface-3);
+    border-radius: 999px;
+    color: var(--text-2);
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+  }
+  .lib-item .add-btn {
+    width: 26px;
+    height: 26px;
+    border-radius: 8px;
+    background: transparent;
+    border: 1px solid var(--border-strong);
+    color: var(--text-2);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    flex-shrink: 0;
+  }
+  .lib-item:hover .add-btn {
+    background: var(--accent);
+    color: #0A0A0A;
+    border-color: var(--accent);
+  }
+
+  /* BUILD AREA */
+  .build-area {
+    padding: 32px 40px 48px;
+    max-width: 920px;
+    margin: 0 auto;
+    width: 100%;
+  }
+  .workout-header {
+    margin-bottom: 28px;
+  }
+  .workout-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 5px 10px;
+    background: var(--accent-dim);
+    color: var(--accent);
+    font-size: 10px;
+    font-weight: 800;
+    letter-spacing: 0.12em;
+    border-radius: 999px;
+    text-transform: uppercase;
+    margin-bottom: 12px;
+    border: 1px solid rgba(197, 255, 0, 0.2);
+  }
+  .workout-pill .pulse {
+    width: 6px;
+    height: 6px;
+    background: var(--accent);
+    border-radius: 50%;
+    box-shadow: 0 0 6px var(--accent);
+  }
+  .workout-title {
+    font-size: 34px;
+    font-weight: 800;
+    letter-spacing: -0.03em;
+    line-height: 1.1;
+    margin-bottom: 8px;
+    background: transparent;
+    border: none;
+    color: var(--text-1);
+    font-family: inherit;
+    width: 100%;
+    outline: none;
+  }
+  .workout-subtitle {
+    color: var(--text-2);
+    font-size: 14px;
+    line-height: 1.5;
+  }
+  .workout-stats {
+    display: flex;
+    gap: 20px;
+    margin-top: 16px;
+    padding: 14px 18px;
+    background: var(--surface-1);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+  }
+  .stat {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    border-right: 1px solid var(--border);
+    padding-right: 20px;
+  }
+  .stat:last-child { border-right: none; }
+  .stat-icon {
+    width: 32px;
+    height: 32px;
+    border-radius: 9px;
+    background: var(--surface-3);
+    color: var(--text-2);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .stat-info .val {
+    font-size: 16px;
+    font-weight: 800;
+    font-family: 'JetBrains Mono', monospace;
+    letter-spacing: -0.02em;
+  }
+  .stat-info .val .unit {
+    font-size: 11px;
+    color: var(--text-3);
+    font-weight: 600;
+    margin-left: 2px;
+  }
+  .stat-info .label {
+    font-size: 10px;
+    color: var(--text-3);
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    font-weight: 700;
+  }
+  .assigned-badge {
+    margin-left: auto;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .assigned-badge .label {
+    font-size: 10px;
+    color: var(--text-3);
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    font-weight: 700;
+  }
+  .assigned-pic {
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    object-fit: cover;
+    border: 1.5px solid var(--accent);
+    margin-left: -8px;
+  }
+  .assigned-pic:first-of-type { margin-left: 0; }
+  .more-count {
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    background: var(--surface-3);
+    color: var(--text-2);
+    border: 1.5px solid var(--border-strong);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 10px;
+    font-weight: 800;
+    font-family: 'JetBrains Mono', monospace;
+    margin-left: -8px;
+  }
+
+  /* EXERCISE LIST */
+  .ex-list {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    margin-top: 24px;
+  }
+  .ex-card {
+    background: var(--surface-1);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    overflow: hidden;
+    transition: all 0.15s;
+  }
+  .ex-card:hover { border-color: var(--border-strong); }
+  .ex-card.expanded { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent-dim); }
+  .ex-row {
+    display: flex;
+    align-items: center;
+    padding: 12px;
+    gap: 14px;
+  }
+  .drag-handle {
+    color: var(--text-3);
+    cursor: grab;
+    padding: 4px;
+  }
+  .drag-handle:hover { color: var(--accent); }
+  .ex-num {
+    width: 28px;
+    height: 28px;
+    border-radius: 8px;
+    background: var(--surface-3);
+    color: var(--text-2);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: 'JetBrains Mono', monospace;
+    font-weight: 800;
+    font-size: 12px;
+    flex-shrink: 0;
+  }
+  .ex-card.expanded .ex-num {
+    background: var(--accent);
+    color: #0A0A0A;
+  }
+  .ex-thumb {
+    width: 56px;
+    height: 56px;
+    border-radius: 10px;
+    background: #fff;
+    object-fit: cover;
+    flex-shrink: 0;
+  }
+  .ex-info { flex: 1; min-width: 0; }
+  .ex-name {
+    font-size: 15px;
+    font-weight: 700;
+    letter-spacing: -0.01em;
+    margin-bottom: 4px;
+  }
+  .ex-meta {
+    display: flex;
+    gap: 6px;
+  }
+  .ex-meta .tag {
+    font-size: 10px;
+    padding: 2px 7px;
+    background: var(--surface-3);
+    border-radius: 999px;
+    color: var(--text-2);
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+  }
+  .ex-config {
+    display: flex;
+    gap: 16px;
+    margin-right: 8px;
+  }
+  .config-cell {
+    text-align: center;
+    min-width: 50px;
+  }
+  .config-cell .label {
+    font-size: 9px;
+    color: var(--text-3);
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    font-weight: 700;
+    margin-bottom: 3px;
+  }
+  .config-cell .val {
+    font-family: 'JetBrains Mono', monospace;
+    font-weight: 800;
+    font-size: 15px;
+    color: var(--text-1);
+  }
+  .ex-actions {
+    display: flex;
+    gap: 4px;
+  }
+  .icon-btn-sm {
+    width: 30px;
+    height: 30px;
+    border-radius: 8px;
+    background: transparent;
+    border: 1px solid var(--border);
+    color: var(--text-3);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+  }
+  .icon-btn-sm:hover { border-color: var(--border-strong); color: var(--text-1); }
+  .icon-btn-sm.danger:hover { border-color: var(--danger); color: var(--danger); }
+
+  /* EXPANDED DETAILS */
+  .ex-details {
+    padding: 0 14px 16px 70px;
+    display: none;
+  }
+  .ex-card.expanded .ex-details { display: block; }
+  .config-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr 1fr;
+    gap: 10px;
+    margin-bottom: 14px;
+  }
+  .config-input {
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 10px 12px;
+  }
+  .config-input .label {
+    font-size: 10px;
+    color: var(--text-3);
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    font-weight: 700;
+    margin-bottom: 4px;
+  }
+  .config-input input {
+    background: transparent;
+    border: none;
+    color: var(--text-1);
+    font-size: 16px;
+    font-weight: 800;
+    font-family: 'JetBrains Mono', monospace;
+    width: 100%;
+    outline: none;
+    padding: 0;
+  }
+  .notes-section .label {
+    font-size: 10px;
+    color: var(--text-3);
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    font-weight: 700;
+    margin-bottom: 6px;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+  }
+  .notes-section .label .accent {
+    color: var(--accent);
+    text-transform: none;
+    letter-spacing: 0;
+    font-size: 10px;
+  }
+  .notes-area {
+    width: 100%;
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 12px;
+    color: var(--text-1);
+    font-size: 13px;
+    font-family: inherit;
+    line-height: 1.5;
+    resize: vertical;
+    min-height: 70px;
+    outline: none;
+  }
+  .notes-area:focus { border-color: var(--accent); }
+  /* Add exercise button */
+  .add-exercise {
+    margin-top: 12px;
+    width: 100%;
+    padding: 18px;
+    background: transparent;
+    border: 1.5px dashed var(--border-strong);
+    border-radius: 16px;
+    color: var(--text-2);
+    font-size: 13px;
+    font-weight: 700;
+    cursor: pointer;
+    font-family: inherit;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    transition: all 0.15s;
+  }
+  .add-exercise:hover {
+    border-color: var(--accent);
+    color: var(--accent);
+    background: rgba(197, 255, 0, 0.03);
+  }
+  /* AI tip */
+  .ai-tip {
+    margin-top: 18px;
+    padding: 14px 16px;
+    background: linear-gradient(155deg, rgba(197, 255, 0, 0.06) 0%, transparent 100%);
+    border: 1px solid rgba(197, 255, 0, 0.18);
+    border-radius: 14px;
+    display: flex;
+    gap: 12px;
+    align-items: flex-start;
+  }
+  .ai-icon {
+    width: 32px;
+    height: 32px;
+    border-radius: 9px;
+    background: var(--accent-dim);
+    color: var(--accent);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+  }
+  .ai-content .ai-title {
+    font-size: 11px;
+    color: var(--accent);
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    font-weight: 800;
+    margin-bottom: 4px;
+  }
+  .ai-content .ai-body {
+    font-size: 13px;
+    color: var(--text-2);
+    line-height: 1.5;
+  }
+  .ai-content .ai-body strong { color: var(--text-1); font-weight: 700; }
+  .ai-actions {
+    margin-top: 10px;
+    display: flex;
+    gap: 8px;
+  }
+  .ai-actions button {
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    color: var(--text-1);
+    padding: 6px 10px;
+    border-radius: 8px;
+    font-size: 11px;
+    font-weight: 700;
+    cursor: pointer;
+    font-family: inherit;
+  }
+  .ai-actions button.primary {
+    background: var(--accent);
+    color: #0A0A0A;
+    border-color: var(--accent);
+  }
+  /* Bottom bar */
+  .bottom-bar {
+    margin-top: 32px;
+    padding: 18px 22px;
+    background: var(--surface-1);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  .bottom-bar .info {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    color: var(--text-2);
+    font-size: 13px;
+  }
+  .bottom-bar .info svg { color: var(--text-3); }
+</style>
+</head>
+<body>
+<div class="topbar">
+  <a href="trainer-dashboard.html" class="back-btn">
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+  </a>
+  <div class="title-area">
+    <div class="breadcrumb">Πρόγραμμα <span class="accent">·</span> Επεξεργασία</div>
+    <h1>
+      Push · Πρωτόκολλο 2
+      <svg class="edit-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
+    </h1>
+  </div>
+  <div class="auto-save">
+    <span class="dot"></span>
+    Αποθηκεύτηκε <strong style="color: var(--text-2);">πριν 12 δευτ.</strong>
+  </div>
+  <div class="topbar-actions">
+    <button class="btn btn-ghost">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+      Preview
+    </button>
+    <button class="btn btn-secondary">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="9" y1="9" x2="15" y2="9"/><line x1="9" y1="13" x2="15" y2="13"/></svg>
+      Αποθήκευση ως template
+    </button>
+    <button class="btn btn-primary">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+      Ανάθεση σε πελάτες
+    </button>
+  </div>
+</div>
+
+<div class="builder">
+  <!-- LIBRARY -->
+  <aside class="library">
+    <div class="library-header">
+      <h2>Βιβλιοθήκη ασκήσεων</h2>
+      <div class="search-wrap">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+        <input class="search-box" placeholder="Αναζήτηση άσκησης..." />
+      </div>
+      <div class="filter-chips">
+        <span class="chip active">Όλα</span>
+        <span class="chip">Στήθος</span>
+        <span class="chip">Πλάτη</span>
+        <span class="chip">Ώμοι</span>
+        <span class="chip">Πόδια</span>
+        <span class="chip">Χέρια</span>
+        <span class="chip">Κορμός</span>
+      </div>
+    </div>
+
+    <div class="lib-section-title">
+      <span>Συχνά Χρησιμοποιούμενα</span>
+      <span class="count">12</span>
+    </div>
+    <div class="lib-list">
+      <div class="lib-item">
+        <img class="thumb" src="https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/Incline_Dumbbell_Press/0.jpg" alt=""/>
+        <div class="info">
+          <div class="name">Πιέσεις σε επικλινή πάγκο</div>
+          <div class="tags">
+            <span class="tag">Στήθος</span>
+            <span class="tag">Ώμοι</span>
+          </div>
+        </div>
+        <button class="add-btn">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+        </button>
+      </div>
+      <div class="lib-item">
+        <img class="thumb" src="https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/Dumbbell_Bench_Press/0.jpg" alt=""/>
+        <div class="info">
+          <div class="name">Πιέσεις πάγκου με αλτήρες</div>
+          <div class="tags">
+            <span class="tag">Στήθος</span>
+            <span class="tag">Τρικ.</span>
+          </div>
+        </div>
+        <button class="add-btn">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+        </button>
+      </div>
+      <div class="lib-item">
+        <img class="thumb" src="https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/Dumbbell_Shoulder_Press/0.jpg" alt=""/>
+        <div class="info">
+          <div class="name">Πιέσεις ώμων με αλτήρες</div>
+          <div class="tags">
+            <span class="tag">Ώμοι</span>
+            <span class="tag">Τρικ.</span>
+          </div>
+        </div>
+        <button class="add-btn">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+        </button>
+      </div>
+      <div class="lib-item">
+        <img class="thumb" src="https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/Side_Lateral_Raise/0.jpg" alt=""/>
+        <div class="info">
+          <div class="name">Πλάγια εκτάσεις αλτήρων</div>
+          <div class="tags">
+            <span class="tag">Ώμοι</span>
+          </div>
+        </div>
+        <button class="add-btn">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+        </button>
+      </div>
+      <div class="lib-item">
+        <img class="thumb" src="https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/Triceps_Pushdown/0.jpg" alt=""/>
+        <div class="info">
+          <div class="name">Τρικέφαλα στο σχοινί</div>
+          <div class="tags">
+            <span class="tag">Τρικ.</span>
+          </div>
+        </div>
+        <button class="add-btn">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+        </button>
+      </div>
+    </div>
+
+    <div class="lib-section-title">
+      <span>Στήθος (Όλα)</span>
+      <span class="count">38</span>
+    </div>
+    <div class="lib-list">
+      <div class="lib-item">
+        <img class="thumb" src="https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/Barbell_Bench_Press_-_Medium_Grip/0.jpg" alt=""/>
+        <div class="info">
+          <div class="name">Πιέσεις πάγκου με μπάρα</div>
+          <div class="tags">
+            <span class="tag">Στήθος</span>
+            <span class="tag">Τρικ.</span>
+          </div>
+        </div>
+        <button class="add-btn">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+        </button>
+      </div>
+      <div class="lib-item">
+        <img class="thumb" src="https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/Cable_Crossover/0.jpg" alt=""/>
+        <div class="info">
+          <div class="name">Cable Crossover</div>
+          <div class="tags">
+            <span class="tag">Στήθος</span>
+          </div>
+        </div>
+        <button class="add-btn">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+        </button>
+      </div>
+      <div class="lib-item">
+        <img class="thumb" src="https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/Dumbbell_Flyes/0.jpg" alt=""/>
+        <div class="info">
+          <div class="name">Πτερύγια με αλτήρες</div>
+          <div class="tags">
+            <span class="tag">Στήθος</span>
+          </div>
+        </div>
+        <button class="add-btn">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+        </button>
+      </div>
+    </div>
+  </aside>
+
+  <!-- BUILD AREA -->
+  <main class="build-area">
+    <div class="workout-header">
+      <div class="workout-pill"><span class="pulse"></span>Push · Πρωτόκολλο 2</div>
+      <input class="workout-title" value="Στήθος, ώμοι & τρικέφαλα" />
+      <div class="workout-subtitle">Δευτέρα + Πέμπτη · ενδιάμεσο επίπεδο · 60' στόχος</div>
+
+      <div class="workout-stats">
+        <div class="stat">
+          <div class="stat-icon">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="6" y1="4" x2="6" y2="20"/><line x1="18" y1="4" x2="18" y2="20"/><line x1="4" y1="9" x2="20" y2="9"/><line x1="4" y1="15" x2="20" y2="15"/></svg>
+          </div>
+          <div class="stat-info">
+            <div class="val">7<span class="unit">ασκήσεις</span></div>
+            <div class="label">Σύνολο</div>
+          </div>
+        </div>
+        <div class="stat">
+          <div class="stat-icon">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+          </div>
+          <div class="stat-info">
+            <div class="val">~60<span class="unit">'</span></div>
+            <div class="label">Διάρκεια</div>
+          </div>
+        </div>
+        <div class="stat">
+          <div class="stat-icon">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>
+          </div>
+          <div class="stat-info">
+            <div class="val">~520<span class="unit">kcal</span></div>
+            <div class="label">Καύση</div>
+          </div>
+        </div>
+        <div class="assigned-badge">
+          <span class="label">Ανατεθειμένο σε</span>
+          <img class="assigned-pic" src="https://randomuser.me/api/portraits/men/45.jpg" alt=""/>
+          <img class="assigned-pic" src="https://randomuser.me/api/portraits/men/55.jpg" alt=""/>
+          <img class="assigned-pic" src="https://randomuser.me/api/portraits/men/29.jpg" alt=""/>
+          <div class="more-count">+5</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="ex-list">
+      <!-- Exercise 1 - Expanded -->
+      <div class="ex-card expanded">
+        <div class="ex-row">
+          <div class="drag-handle">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><circle cx="8" cy="6" r="1.5"/><circle cx="16" cy="6" r="1.5"/><circle cx="8" cy="12" r="1.5"/><circle cx="16" cy="12" r="1.5"/><circle cx="8" cy="18" r="1.5"/><circle cx="16" cy="18" r="1.5"/></svg>
+          </div>
+          <div class="ex-num">01</div>
+          <img class="ex-thumb" src="https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/Incline_Dumbbell_Press/0.jpg" alt=""/>
+          <div class="ex-info">
+            <div class="ex-name">Πιέσεις με αλτήρες σε επικλινή πάγκο</div>
+            <div class="ex-meta">
+              <span class="tag">Στήθος</span>
+              <span class="tag">Ώμοι</span>
+              <span class="tag">Compound</span>
+            </div>
+          </div>
+          <div class="ex-config">
+            <div class="config-cell"><div class="label">ΣΕΤ</div><div class="val">2</div></div>
+            <div class="config-cell"><div class="label">ΕΠΑΝ.</div><div class="val">10-12</div></div>
+            <div class="config-cell"><div class="label">REST</div><div class="val">120''</div></div>
+          </div>
+          <div class="ex-actions">
+            <button class="icon-btn-sm" title="Σύμπτυξη">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="18 15 12 9 6 15"/></svg>
+            </button>
+            <button class="icon-btn-sm danger" title="Διαγραφή">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+            </button>
+          </div>
+        </div>
+        <div class="ex-details">
+          <div class="config-grid">
+            <div class="config-input">
+              <div class="label">Σετ</div>
+              <input value="2" />
+            </div>
+            <div class="config-input">
+              <div class="label">Επαναλήψεις</div>
+              <input value="10-12" />
+            </div>
+            <div class="config-input">
+              <div class="label">Ξεκούραση (sec)</div>
+              <input value="120" />
+            </div>
+            <div class="config-input">
+              <div class="label">Tempo</div>
+              <input value="2-0-2-0" />
+            </div>
+          </div>
+          <div class="notes-section">
+            <div class="label">
+              Σημείωση προς αθλούμενο
+              <span class="accent">· εμφανίζεται μέσα στο app του πελάτη</span>
+            </div>
+            <textarea class="notes-area">Αφού κάνεις δυο σετ για ζέσταμα με λίγο φορτίο, στο πρώτο θα ήθελα να εκτελέσεις 10-12 επαναλήψεις. Στο δεύτερο, αφού εκτελέσεις τις επαναλήψεις, να βγάλεις 10 μισές κάτω και 10 μισές πάνω (drop set).</textarea>
+          </div>
+        </div>
+      </div>
+
+      <!-- Exercise 2 -->
+      <div class="ex-card">
+        <div class="ex-row">
+          <div class="drag-handle">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><circle cx="8" cy="6" r="1.5"/><circle cx="16" cy="6" r="1.5"/><circle cx="8" cy="12" r="1.5"/><circle cx="16" cy="12" r="1.5"/><circle cx="8" cy="18" r="1.5"/><circle cx="16" cy="18" r="1.5"/></svg>
+          </div>
+          <div class="ex-num">02</div>
+          <img class="ex-thumb" src="https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/Barbell_Bench_Press_-_Medium_Grip/0.jpg" alt=""/>
+          <div class="ex-info">
+            <div class="ex-name">Πιέσεις πάγκου με μπάρα</div>
+            <div class="ex-meta">
+              <span class="tag">Στήθος</span>
+              <span class="tag">Τρικ.</span>
+              <span class="tag">Compound</span>
+            </div>
+          </div>
+          <div class="ex-config">
+            <div class="config-cell"><div class="label">ΣΕΤ</div><div class="val">4</div></div>
+            <div class="config-cell"><div class="label">ΕΠΑΝ.</div><div class="val">8-10</div></div>
+            <div class="config-cell"><div class="label">REST</div><div class="val">120''</div></div>
+          </div>
+          <div class="ex-actions">
+            <button class="icon-btn-sm">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+            </button>
+            <button class="icon-btn-sm danger">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Exercise 3 - Incline Dumbbell Press (currently active in workout view) -->
+      <div class="ex-card">
+        <div class="ex-row">
+          <div class="drag-handle">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><circle cx="8" cy="6" r="1.5"/><circle cx="16" cy="6" r="1.5"/><circle cx="8" cy="12" r="1.5"/><circle cx="16" cy="12" r="1.5"/><circle cx="8" cy="18" r="1.5"/><circle cx="16" cy="18" r="1.5"/></svg>
+          </div>
+          <div class="ex-num">03</div>
+          <img class="ex-thumb" src="https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/Dumbbell_Flyes/0.jpg" alt=""/>
+          <div class="ex-info">
+            <div class="ex-name">Πτερύγια με αλτήρες σε επικλινή</div>
+            <div class="ex-meta">
+              <span class="tag">Στήθος</span>
+              <span class="tag">Isolation</span>
+            </div>
+          </div>
+          <div class="ex-config">
+            <div class="config-cell"><div class="label">ΣΕΤ</div><div class="val">3</div></div>
+            <div class="config-cell"><div class="label">ΕΠΑΝ.</div><div class="val">12-15</div></div>
+            <div class="config-cell"><div class="label">REST</div><div class="val">75''</div></div>
+          </div>
+          <div class="ex-actions">
+            <button class="icon-btn-sm">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+            </button>
+            <button class="icon-btn-sm danger">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Exercise 4 -->
+      <div class="ex-card">
+        <div class="ex-row">
+          <div class="drag-handle">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><circle cx="8" cy="6" r="1.5"/><circle cx="16" cy="6" r="1.5"/><circle cx="8" cy="12" r="1.5"/><circle cx="16" cy="12" r="1.5"/><circle cx="8" cy="18" r="1.5"/><circle cx="16" cy="18" r="1.5"/></svg>
+          </div>
+          <div class="ex-num">04</div>
+          <img class="ex-thumb" src="https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/Dumbbell_Shoulder_Press/0.jpg" alt=""/>
+          <div class="ex-info">
+            <div class="ex-name">Πιέσεις ώμων με αλτήρες</div>
+            <div class="ex-meta">
+              <span class="tag">Ώμοι</span>
+              <span class="tag">Τρικ.</span>
+              <span class="tag">Compound</span>
+            </div>
+          </div>
+          <div class="ex-config">
+            <div class="config-cell"><div class="label">ΣΕΤ</div><div class="val">4</div></div>
+            <div class="config-cell"><div class="label">ΕΠΑΝ.</div><div class="val">10</div></div>
+            <div class="config-cell"><div class="label">REST</div><div class="val">90''</div></div>
+          </div>
+          <div class="ex-actions">
+            <button class="icon-btn-sm">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+            </button>
+            <button class="icon-btn-sm danger">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Exercise 5 -->
+      <div class="ex-card">
+        <div class="ex-row">
+          <div class="drag-handle">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><circle cx="8" cy="6" r="1.5"/><circle cx="16" cy="6" r="1.5"/><circle cx="8" cy="12" r="1.5"/><circle cx="16" cy="12" r="1.5"/><circle cx="8" cy="18" r="1.5"/><circle cx="16" cy="18" r="1.5"/></svg>
+          </div>
+          <div class="ex-num">05</div>
+          <img class="ex-thumb" src="https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/Side_Lateral_Raise/0.jpg" alt=""/>
+          <div class="ex-info">
+            <div class="ex-name">Πλάγια εκτάσεις αλτήρων</div>
+            <div class="ex-meta">
+              <span class="tag">Ώμοι</span>
+              <span class="tag">Isolation</span>
+            </div>
+          </div>
+          <div class="ex-config">
+            <div class="config-cell"><div class="label">ΣΕΤ</div><div class="val">3</div></div>
+            <div class="config-cell"><div class="label">ΕΠΑΝ.</div><div class="val">15</div></div>
+            <div class="config-cell"><div class="label">REST</div><div class="val">60''</div></div>
+          </div>
+          <div class="ex-actions">
+            <button class="icon-btn-sm">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+            </button>
+            <button class="icon-btn-sm danger">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Exercise 6 -->
+      <div class="ex-card">
+        <div class="ex-row">
+          <div class="drag-handle">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><circle cx="8" cy="6" r="1.5"/><circle cx="16" cy="6" r="1.5"/><circle cx="8" cy="12" r="1.5"/><circle cx="16" cy="12" r="1.5"/><circle cx="8" cy="18" r="1.5"/><circle cx="16" cy="18" r="1.5"/></svg>
+          </div>
+          <div class="ex-num">06</div>
+          <img class="ex-thumb" src="https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/Triceps_Pushdown/0.jpg" alt=""/>
+          <div class="ex-info">
+            <div class="ex-name">Τρικέφαλα στο σχοινί</div>
+            <div class="ex-meta">
+              <span class="tag">Τρικ.</span>
+              <span class="tag">Isolation</span>
+            </div>
+          </div>
+          <div class="ex-config">
+            <div class="config-cell"><div class="label">ΣΕΤ</div><div class="val">3</div></div>
+            <div class="config-cell"><div class="label">ΕΠΑΝ.</div><div class="val">12</div></div>
+            <div class="config-cell"><div class="label">REST</div><div class="val">60''</div></div>
+          </div>
+          <div class="ex-actions">
+            <button class="icon-btn-sm">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+            </button>
+            <button class="icon-btn-sm danger">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Exercise 7 -->
+      <div class="ex-card">
+        <div class="ex-row">
+          <div class="drag-handle">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><circle cx="8" cy="6" r="1.5"/><circle cx="16" cy="6" r="1.5"/><circle cx="8" cy="12" r="1.5"/><circle cx="16" cy="12" r="1.5"/><circle cx="8" cy="18" r="1.5"/><circle cx="16" cy="18" r="1.5"/></svg>
+          </div>
+          <div class="ex-num">07</div>
+          <img class="ex-thumb" src="https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/Pushups/0.jpg" alt=""/>
+          <div class="ex-info">
+            <div class="ex-name">Push-ups (κάμψεις)</div>
+            <div class="ex-meta">
+              <span class="tag">Στήθος</span>
+              <span class="tag">Σωματικού βάρους</span>
+              <span class="tag">Finisher</span>
+            </div>
+          </div>
+          <div class="ex-config">
+            <div class="config-cell"><div class="label">ΣΕΤ</div><div class="val">3</div></div>
+            <div class="config-cell"><div class="label">ΕΠΑΝ.</div><div class="val">AMRAP</div></div>
+            <div class="config-cell"><div class="label">REST</div><div class="val">45''</div></div>
+          </div>
+          <div class="ex-actions">
+            <button class="icon-btn-sm">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+            </button>
+            <button class="icon-btn-sm danger">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <button class="add-exercise">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+      Πρόσθεσε άσκηση · σύρε από τη βιβλιοθήκη ή κλικ εδώ
+    </button>
+
+    <div class="ai-tip">
+      <div class="ai-icon">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><line x1="12" y1="2" x2="12" y2="4"/><line x1="12" y1="20" x2="12" y2="22"/><line x1="4.93" y1="4.93" x2="6.34" y2="6.34"/><line x1="17.66" y1="17.66" x2="19.07" y2="19.07"/><line x1="2" y1="12" x2="4" y2="12"/><line x1="20" y1="12" x2="22" y2="12"/><line x1="4.93" y1="19.07" x2="6.34" y2="17.66"/><line x1="17.66" y1="6.34" x2="19.07" y2="4.93"/></svg>
+      </div>
+      <div class="ai-content">
+        <div class="ai-title">⚡ AI Coach</div>
+        <div class="ai-body">Το πρόγραμμα έχει <strong>3 ασκήσεις στήθους</strong> και <strong>2 ώμων</strong>. Σου προτείνω να προσθέσεις <strong>1 άσκηση για posterior delts</strong> (face pulls) για ισορροπία και προστασία ώμων.</div>
+        <div class="ai-actions">
+          <button class="primary">+ Πρόσθεσε Face Pulls</button>
+          <button>Άγνοια</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="bottom-bar">
+      <div class="info">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+        Οι αλλαγές αποθηκεύονται αυτόματα και εμφανίζονται αμέσως στους ανατεθειμένους πελάτες
+      </div>
+      <button class="btn btn-primary">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+        Ανάθεση σε 5 ακόμα πελάτες
+      </button>
+    </div>
+  </main>
+</div>
+</body>
+</html>

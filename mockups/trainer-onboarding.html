@@ -1,0 +1,695 @@
+<!DOCTYPE html>
+<html lang="el">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Athlon — Καλώς ήρθες</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@500;700;800&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0A0A0A;
+    --surface-1: #131313;
+    --surface-2: #1A1A1A;
+    --surface-3: #242424;
+    --border: #232323;
+    --border-strong: #303030;
+    --text-1: #FAFAFA;
+    --text-2: #A1A1A1;
+    --text-3: #6B6B6B;
+    --accent: #C5FF00;
+    --accent-dim: rgba(197, 255, 0, 0.12);
+    --success: #4ADE80;
+    --info: #60A5FA;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body {
+    background: var(--bg); color: var(--text-1);
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+    min-height: 100vh; -webkit-font-smoothing: antialiased;
+    background-image:
+      radial-gradient(circle at 15% 10%, rgba(197, 255, 0, 0.06) 0%, transparent 50%),
+      radial-gradient(circle at 85% 70%, rgba(96, 165, 250, 0.04) 0%, transparent 50%);
+  }
+  /* Header */
+  .header {
+    height: 64px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 32px;
+  }
+  .brand-row {
+    display: flex; align-items: center; gap: 10px;
+  }
+  .brand-logo {
+    width: 32px; height: 32px;
+    background: linear-gradient(135deg, var(--accent) 0%, #8FB300 100%);
+    border-radius: 8px;
+    display: flex; align-items: center; justify-content: center;
+    color: #0A0A0A; font-weight: 900; font-size: 16px;
+    box-shadow: 0 0 14px rgba(197, 255, 0, 0.35);
+  }
+  .brand-text {
+    font-weight: 900; font-size: 16px; letter-spacing: -0.025em;
+  }
+  .brand-text .dot { color: var(--accent); }
+  .header-right {
+    display: flex; align-items: center; gap: 16px;
+    font-size: 13px; color: var(--text-2);
+  }
+  .header-right a {
+    color: var(--accent); text-decoration: none; font-weight: 700;
+  }
+
+  /* Steps indicator */
+  .steps {
+    max-width: 720px; margin: 0 auto; padding: 32px 24px 0;
+    display: flex; align-items: center; gap: 12px;
+  }
+  .step {
+    flex: 1; display: flex; align-items: center; gap: 8px;
+  }
+  .step-num {
+    width: 26px; height: 26px; border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 11px; font-weight: 800;
+    border: 1.5px solid var(--border-strong);
+    color: var(--text-3); background: var(--surface-1);
+    font-family: 'JetBrains Mono', monospace;
+    flex-shrink: 0;
+  }
+  .step.done .step-num {
+    background: var(--accent); color: #0A0A0A; border-color: var(--accent);
+  }
+  .step.active .step-num {
+    background: var(--surface-1); color: var(--accent); border-color: var(--accent);
+    box-shadow: 0 0 0 4px rgba(197, 255, 0, 0.12);
+  }
+  .step-label {
+    font-size: 11px; font-weight: 700;
+    text-transform: uppercase; letter-spacing: 0.1em;
+    color: var(--text-3); white-space: nowrap;
+  }
+  .step.done .step-label { color: var(--text-2); }
+  .step.active .step-label { color: var(--accent); }
+  .step-line {
+    flex: 1; height: 1.5px; background: var(--border);
+  }
+  .step.done + .step .step-line { background: var(--accent); }
+
+  /* Main */
+  .main {
+    max-width: 1100px; margin: 0 auto;
+    padding: 32px 24px 64px;
+    display: grid;
+    grid-template-columns: 1.3fr 1fr;
+    gap: 40px;
+    align-items: start;
+  }
+
+  /* Form column */
+  .intro h1 {
+    font-size: 38px; font-weight: 800; letter-spacing: -0.035em;
+    line-height: 1.05; margin-bottom: 12px;
+  }
+  .intro h1 .accent { color: var(--accent); }
+  .intro .lead {
+    font-size: 16px; color: var(--text-2); line-height: 1.6;
+    margin-bottom: 32px;
+  }
+  .intro .lead strong { color: var(--text-1); font-weight: 700; }
+  .form-card {
+    background: var(--surface-1);
+    border: 1px solid var(--border);
+    border-radius: 18px;
+    padding: 26px;
+  }
+  .form-card h2 {
+    font-size: 16px; font-weight: 800; letter-spacing: -0.01em;
+    margin-bottom: 4px;
+  }
+  .form-card .helper {
+    font-size: 12px; color: var(--text-3); margin-bottom: 22px;
+  }
+  .field {
+    margin-bottom: 18px;
+  }
+  .field-label {
+    font-size: 11px; color: var(--text-2); font-weight: 700;
+    text-transform: uppercase; letter-spacing: 0.1em;
+    margin-bottom: 7px;
+    display: flex; align-items: center; gap: 6px;
+  }
+  .field-label .req { color: var(--accent); }
+  .input {
+    width: 100%; background: var(--surface-2);
+    border: 1px solid var(--border); border-radius: 11px;
+    padding: 12px 14px; color: var(--text-1);
+    font-size: 14px; font-family: inherit; outline: none;
+    transition: border-color 0.15s, box-shadow 0.15s;
+  }
+  .input:focus { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(197, 255, 0, 0.1); }
+  .input::placeholder { color: var(--text-3); }
+  .input-row {
+    display: grid; grid-template-columns: 1fr 1fr; gap: 12px;
+  }
+
+  /* Logo upload */
+  .logo-upload {
+    display: flex; gap: 14px; align-items: center;
+  }
+  .logo-preview {
+    width: 70px; height: 70px;
+    border-radius: 14px;
+    background: #000;
+    border: 1.5px dashed var(--border-strong);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 11px; color: var(--text-3); flex-shrink: 0;
+    overflow: hidden;
+    position: relative;
+  }
+  .logo-preview .logo-img {
+    width: 100%; height: 100%; object-fit: contain;
+    background: #000;
+  }
+  .logo-upload-info { flex: 1; }
+  .logo-actions { display: flex; gap: 6px; margin-bottom: 6px; }
+  .logo-btn {
+    background: var(--surface-2); border: 1px solid var(--border);
+    color: var(--text-1); padding: 8px 12px; border-radius: 9px;
+    font-size: 12px; font-weight: 700; cursor: pointer;
+    font-family: inherit; display: flex; align-items: center; gap: 6px;
+  }
+  .logo-btn:hover { border-color: var(--border-strong); }
+  .logo-btn.danger { color: var(--text-2); }
+  .logo-btn.danger:hover { color: #FF4D4D; border-color: rgba(255,77,77,0.3); }
+  .logo-help {
+    font-size: 11px; color: var(--text-3);
+  }
+
+  /* Color swatches */
+  .colors-row {
+    display: flex; gap: 8px; flex-wrap: wrap;
+  }
+  .color-swatch {
+    width: 36px; height: 36px; border-radius: 10px;
+    cursor: pointer; position: relative;
+    border: 2px solid transparent;
+    transition: transform 0.15s;
+  }
+  .color-swatch:hover { transform: scale(1.08); }
+  .color-swatch.active {
+    border-color: var(--text-1);
+    box-shadow: 0 0 0 2px var(--bg), 0 0 0 4px currentColor;
+  }
+  .color-swatch.active::after {
+    content: '✓'; position: absolute; inset: 0;
+    display: flex; align-items: center; justify-content: center;
+    color: #fff; font-weight: 800; font-size: 14px;
+    text-shadow: 0 1px 2px rgba(0,0,0,0.5);
+  }
+  .color-custom {
+    width: 36px; height: 36px; border-radius: 10px;
+    border: 1.5px dashed var(--border-strong);
+    background: var(--surface-2);
+    display: flex; align-items: center; justify-content: center;
+    color: var(--text-3); cursor: pointer;
+  }
+
+  /* Specialty chips */
+  .chips-row {
+    display: flex; gap: 6px; flex-wrap: wrap;
+  }
+  .chip {
+    padding: 8px 13px; background: var(--surface-2);
+    border: 1px solid var(--border); border-radius: 999px;
+    font-size: 12px; font-weight: 700; color: var(--text-2);
+    cursor: pointer; transition: all 0.15s;
+  }
+  .chip:hover { border-color: var(--border-strong); }
+  .chip.active {
+    background: var(--accent-dim);
+    border-color: var(--accent); color: var(--accent);
+  }
+
+  /* Language toggles */
+  .lang-row { display: flex; gap: 8px; }
+  .lang-card {
+    flex: 1; padding: 14px; background: var(--surface-2);
+    border: 1.5px solid var(--border); border-radius: 12px;
+    display: flex; align-items: center; gap: 10px;
+    cursor: pointer; transition: all 0.15s;
+  }
+  .lang-card:hover { border-color: var(--border-strong); }
+  .lang-card.active {
+    border-color: var(--accent); background: var(--accent-dim);
+  }
+  .lang-flag {
+    width: 28px; height: 20px; border-radius: 4px;
+    background-size: cover; background-position: center;
+    flex-shrink: 0;
+  }
+  .lang-flag.gr {
+    background: linear-gradient(0deg,
+      #0d5eaf 0%, #0d5eaf 11%, #fff 11%, #fff 22%,
+      #0d5eaf 22%, #0d5eaf 33%, #fff 33%, #fff 44%,
+      #0d5eaf 44%, #0d5eaf 100%);
+    position: relative;
+  }
+  .lang-flag.gr::before {
+    content: ''; position: absolute; top: 0; left: 0;
+    width: 44%; height: 56%; background: #0d5eaf;
+  }
+  .lang-flag.gr::after {
+    content: ''; position: absolute; top: 11%; left: 18%;
+    width: 8%; height: 34%; background: #fff;
+  }
+  .lang-flag.es {
+    background: linear-gradient(180deg,
+      #aa151b 0%, #aa151b 25%, #f1bf00 25%, #f1bf00 75%,
+      #aa151b 75%, #aa151b 100%);
+  }
+  .lang-flag.en {
+    background: #012169; position: relative;
+  }
+  .lang-flag.en::before {
+    content: '🇬🇧'; position: absolute; inset: 0;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 14px;
+  }
+  .lang-card .info { flex: 1; min-width: 0; }
+  .lang-card .name { font-size: 13px; font-weight: 800; }
+  .lang-card .sub { font-size: 10px; color: var(--text-3); margin-top: 1px; }
+  .lang-card.active .sub { color: var(--accent); }
+
+  /* Bottom actions */
+  .form-actions {
+    display: flex; align-items: center; justify-content: space-between;
+    margin-top: 30px; padding-top: 22px;
+    border-top: 1px solid var(--border);
+  }
+  .form-actions .helper {
+    font-size: 11px; color: var(--text-3); margin: 0;
+    display: flex; align-items: center; gap: 8px;
+  }
+  .form-actions .helper .accent { color: var(--success); font-weight: 800; }
+  .btn {
+    border-radius: 11px; padding: 11px 18px;
+    font-size: 13px; font-weight: 800; cursor: pointer;
+    font-family: inherit; display: flex; align-items: center;
+    gap: 8px; border: none; transition: all 0.15s;
+  }
+  .btn-primary {
+    background: var(--accent); color: #0A0A0A;
+    box-shadow: 0 0 24px rgba(197, 255, 0, 0.3);
+  }
+  .btn-primary:hover { box-shadow: 0 0 36px rgba(197, 255, 0, 0.5); }
+  .btn-ghost { background: transparent; color: var(--text-2); }
+  .btn-ghost:hover { color: var(--text-1); }
+
+  /* PREVIEW column */
+  .preview-col {
+    position: sticky; top: 32px;
+  }
+  .preview-label {
+    font-size: 10px; color: var(--text-3); text-transform: uppercase;
+    letter-spacing: 0.14em; font-weight: 800;
+    margin-bottom: 12px; display: flex; align-items: center; gap: 8px;
+  }
+  .preview-label .live {
+    display: inline-flex; align-items: center; gap: 5px;
+    color: var(--accent);
+  }
+  .preview-label .live .dot {
+    width: 6px; height: 6px; border-radius: 50%;
+    background: var(--accent); box-shadow: 0 0 6px var(--accent);
+    animation: pulse 1.4s ease-in-out infinite;
+  }
+  @keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.4; }
+  }
+  .preview-phones {
+    display: flex; gap: 14px; justify-content: center;
+  }
+  .phone-frame {
+    width: 220px; height: 460px;
+    background: #000; border: 8px solid #1A1A1A;
+    border-radius: 36px; padding: 12px 10px;
+    position: relative; box-shadow: 0 30px 60px rgba(0,0,0,0.5);
+    overflow: hidden;
+  }
+  .phone-frame::before {
+    content: ''; position: absolute; top: 6px; left: 50%;
+    transform: translateX(-50%);
+    width: 60px; height: 6px; background: #000; border-radius: 4px;
+  }
+  .phone-content {
+    background: #FF6B00; /* will be overridden */
+    border-radius: 24px; height: 100%;
+    padding: 24px 16px 16px; overflow: hidden;
+    position: relative;
+    background: linear-gradient(155deg, #FF6B00 0%, #FFB800 100%);
+    transition: background 0.3s;
+  }
+  .phone-content.lime {
+    background: linear-gradient(155deg, #C5FF00 0%, #8FB300 100%);
+  }
+  .phone-logo-wrap {
+    text-align: center; padding-top: 16px;
+  }
+  .phone-studio-logo {
+    width: 60px; height: 60px; border-radius: 50%;
+    background: #000; margin: 0 auto;
+    display: flex; align-items: center; justify-content: center;
+    font-weight: 900; color: #FFD700; font-size: 14px;
+    overflow: hidden;
+  }
+  .phone-studio-logo img { width: 100%; height: 100%; object-fit: cover; }
+  .phone-studio-name {
+    color: #fff; font-weight: 900; font-size: 18px;
+    margin-top: 10px; letter-spacing: -0.02em;
+  }
+  .phone-studio-subtitle {
+    color: rgba(255,255,255,0.7); font-size: 11px; margin-top: 2px;
+    font-weight: 600;
+  }
+  .phone-content.lime .phone-studio-name { color: #0A0A0A; }
+  .phone-content.lime .phone-studio-subtitle { color: rgba(10,10,10,0.6); }
+  .phone-login-card {
+    background: #fff; border-radius: 18px; margin-top: 24px;
+    padding: 16px; box-shadow: 0 8px 24px rgba(0,0,0,0.2);
+  }
+  .phone-input {
+    background: #F5F5F5; border-radius: 10px; padding: 10px;
+    font-size: 11px; color: #888; margin-bottom: 8px;
+  }
+  .phone-btn-fake {
+    background: linear-gradient(135deg, #FF6B00 0%, #FFB800 100%);
+    color: #fff; text-align: center; padding: 10px; border-radius: 10px;
+    font-weight: 800; font-size: 12px; margin-top: 4px;
+    transition: background 0.3s;
+  }
+  .phone-content.lime .phone-btn-fake {
+    background: linear-gradient(135deg, #C5FF00 0%, #8FB300 100%);
+    color: #0A0A0A;
+  }
+  .phone-watermark {
+    position: absolute; bottom: 12px; left: 0; right: 0;
+    text-align: center; font-size: 8px;
+    color: rgba(255,255,255,0.6); font-weight: 700;
+    letter-spacing: 0.1em; text-transform: uppercase;
+  }
+  .phone-content.lime .phone-watermark { color: rgba(10,10,10,0.5); }
+
+  /* Phone 2 - dashboard view */
+  .phone-frame.dark .phone-content {
+    background: #0A0A0A;
+    padding: 16px 12px;
+  }
+  .phone-dash-header {
+    background: linear-gradient(135deg, #FF6B00 0%, #FFB800 100%);
+    border-radius: 14px; padding: 12px; display: flex; gap: 8px;
+    align-items: center; transition: background 0.3s;
+  }
+  .phone-frame.dark .phone-content.lime .phone-dash-header {
+    background: linear-gradient(135deg, #C5FF00 0%, #8FB300 100%);
+  }
+  .phone-dash-logo {
+    width: 28px; height: 28px; border-radius: 50%; background: #000;
+    overflow: hidden;
+    display: flex; align-items: center; justify-content: center;
+    font-weight: 900; color: #FFD700; font-size: 9px;
+  }
+  .phone-dash-logo img { width: 100%; height: 100%; object-fit: cover; }
+  .phone-dash-info { flex: 1; min-width: 0; }
+  .phone-dash-name { font-size: 9px; color: #fff; font-weight: 700; }
+  .phone-dash-studio { font-size: 12px; color: #fff; font-weight: 900; letter-spacing: -0.02em; }
+  .phone-frame.dark .phone-content.lime .phone-dash-name,
+  .phone-frame.dark .phone-content.lime .phone-dash-studio {
+    color: #0A0A0A;
+  }
+  .phone-greet {
+    color: #fff; font-size: 14px; font-weight: 800;
+    margin-top: 16px; padding: 0 4px;
+  }
+  .phone-card-fake {
+    background: #131313; border-radius: 12px; padding: 10px;
+    margin-top: 10px; border: 1px solid #232323;
+  }
+  .phone-card-fake .ttl {
+    font-size: 9px; color: #6B6B6B; text-transform: uppercase;
+    letter-spacing: 0.1em; font-weight: 800;
+  }
+  .phone-card-fake .val {
+    font-size: 13px; color: #fff; font-weight: 800; margin-top: 4px;
+  }
+
+  /* Trust footer */
+  .trust-row {
+    margin-top: 18px;
+    display: flex; gap: 12px; flex-wrap: wrap; justify-content: center;
+  }
+  .trust-item {
+    display: flex; align-items: center; gap: 6px;
+    font-size: 11px; color: var(--text-3); font-weight: 600;
+  }
+  .trust-item svg { color: var(--success); }
+</style>
+</head>
+<body>
+<div class="header">
+  <div class="brand-row">
+    <div class="brand-logo">A</div>
+    <div class="brand-text">ATHLON<span class="dot">.</span></div>
+  </div>
+  <div class="header-right">
+    <span>Έχεις ήδη λογαριασμό; <a href="#">Συνδέσου</a></span>
+  </div>
+</div>
+
+<div class="steps">
+  <div class="step done">
+    <div class="step-num">✓</div>
+    <div class="step-label">Λογαριασμός</div>
+  </div>
+  <div class="step-line"></div>
+  <div class="step active">
+    <div class="step-num">2</div>
+    <div class="step-label">Studio</div>
+  </div>
+  <div class="step-line"></div>
+  <div class="step">
+    <div class="step-num">3</div>
+    <div class="step-label">Πρώτος πελάτης</div>
+  </div>
+  <div class="step-line"></div>
+  <div class="step">
+    <div class="step-num">4</div>
+    <div class="step-label">Συνδρομή</div>
+  </div>
+  <div class="step-line"></div>
+  <div class="step">
+    <div class="step-num">5</div>
+    <div class="step-label">Έτοιμος!</div>
+  </div>
+</div>
+
+<div class="main">
+  <!-- FORM -->
+  <div>
+    <div class="intro">
+      <h1>Φτιάξε το <span class="accent">δικό σου</span> studio.</h1>
+      <p class="lead">Οι πελάτες σου δεν θα βλέπουν «Athlon» — θα βλέπουν <strong>το δικό σου brand</strong>. Λογότυπο, όνομα, χρώματα: ό,τι αναγνωρίζουν ήδη από εσένα. Όλα προσαρμοσμένα σε 30 δευτερόλεπτα.</p>
+    </div>
+
+    <div class="form-card">
+      <h2>Στοιχεία studio</h2>
+      <div class="helper">Όλα μπορούν να αλλάξουν αργότερα από τις ρυθμίσεις</div>
+
+      <div class="field">
+        <div class="field-label">
+          Όνομα studio <span class="req">·</span>
+        </div>
+        <input class="input" value="Maxfitness" />
+      </div>
+
+      <div class="field">
+        <div class="field-label">
+          Λογότυπο <span class="req">·</span>
+        </div>
+        <div class="logo-upload">
+          <div class="logo-preview">
+            <img class="logo-img" src="data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' fill='%23000'/><text x='50' y='42' text-anchor='middle' fill='%23FFD700' font-family='Arial' font-weight='900' font-size='18'>MAX</text><text x='50' y='62' text-anchor='middle' fill='%23FFD700' font-family='Arial' font-weight='900' font-size='10'>FITNESS</text></svg>" alt=""/>
+          </div>
+          <div class="logo-upload-info">
+            <div class="logo-actions">
+              <button class="logo-btn">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+                Αλλαγή
+              </button>
+              <button class="logo-btn danger">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/></svg>
+                Αφαίρεση
+              </button>
+            </div>
+            <div class="logo-help">PNG, JPG ή SVG · μέγιστο 2MB · συστήνεται 512×512px</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="field">
+        <div class="field-label">Κύριο χρώμα brand</div>
+        <div class="colors-row">
+          <div class="color-swatch active" style="background: linear-gradient(135deg, #C5FF00, #8FB300); color: #C5FF00;"></div>
+          <div class="color-swatch" style="background: linear-gradient(135deg, #FF6B00, #FFB800);"></div>
+          <div class="color-swatch" style="background: linear-gradient(135deg, #FF4D6D, #C9184A);"></div>
+          <div class="color-swatch" style="background: linear-gradient(135deg, #60A5FA, #2563EB);"></div>
+          <div class="color-swatch" style="background: linear-gradient(135deg, #A78BFA, #7C3AED);"></div>
+          <div class="color-swatch" style="background: linear-gradient(135deg, #4ADE80, #16A34A);"></div>
+          <div class="color-swatch" style="background: linear-gradient(135deg, #FBBF24, #D97706);"></div>
+          <div class="color-custom" title="Προσαρμοσμένο">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>
+          </div>
+        </div>
+      </div>
+
+      <div class="field">
+        <div class="field-label">Ειδικότητα (επίλεξε όσα ταιριάζουν)</div>
+        <div class="chips-row">
+          <span class="chip active">Bodybuilding</span>
+          <span class="chip active">Απώλεια λίπους</span>
+          <span class="chip">Powerlifting</span>
+          <span class="chip">CrossFit</span>
+          <span class="chip">Γυναικείο fitness</span>
+          <span class="chip">Αποκατάσταση</span>
+          <span class="chip">Διατροφή</span>
+          <span class="chip">Online coaching</span>
+        </div>
+      </div>
+
+      <div class="field">
+        <div class="field-label">Γλώσσες που μιλάς με τους πελάτες σου</div>
+        <div class="lang-row">
+          <div class="lang-card active">
+            <div class="lang-flag gr"></div>
+            <div class="info">
+              <div class="name">Ελληνικά</div>
+              <div class="sub">Κύρια γλώσσα</div>
+            </div>
+          </div>
+          <div class="lang-card">
+            <div class="lang-flag es"></div>
+            <div class="info">
+              <div class="name">Español</div>
+              <div class="sub">Διαθέσιμη</div>
+            </div>
+          </div>
+          <div class="lang-card">
+            <div class="lang-flag en"></div>
+            <div class="info">
+              <div class="name">English</div>
+              <div class="sub">Διαθέσιμη</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="form-actions">
+        <button class="btn btn-ghost">← Πίσω</button>
+        <div style="display: flex; align-items: center; gap: 14px;">
+          <p class="helper"><span class="accent">●</span> Auto-saved</p>
+          <button class="btn btn-primary">
+            Συνέχεια
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <div class="trust-row">
+      <div class="trust-item">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+        30 ημέρες δωρεάν
+      </div>
+      <div class="trust-item">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+        Χωρίς πιστωτική κάρτα
+      </div>
+      <div class="trust-item">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+        Ακύρωση οποτεδήποτε
+      </div>
+      <div class="trust-item">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+        GDPR / EU servers
+      </div>
+    </div>
+  </div>
+
+  <!-- LIVE PREVIEW -->
+  <div class="preview-col">
+    <div class="preview-label">
+      <span>Πώς το βλέπει ο πελάτης σου</span>
+      <span class="live"><span class="dot"></span>LIVE</span>
+    </div>
+    <div class="preview-phones">
+      <!-- Phone 1: Login -->
+      <div class="phone-frame">
+        <div class="phone-content lime" id="phone1">
+          <div class="phone-logo-wrap">
+            <div class="phone-studio-logo">
+              <img src="data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' fill='%23000'/><text x='50' y='42' text-anchor='middle' fill='%23FFD700' font-family='Arial' font-weight='900' font-size='18'>MAX</text><text x='50' y='62' text-anchor='middle' fill='%23FFD700' font-family='Arial' font-weight='900' font-size='10'>FITNESS</text></svg>" alt=""/>
+            </div>
+            <div class="phone-studio-name">Θάνος Αλιμπάκης</div>
+            <div class="phone-studio-subtitle">Maxfitness</div>
+          </div>
+          <div class="phone-login-card">
+            <div style="font-size: 13px; font-weight: 800; color: #0A0A0A; margin-bottom: 12px; text-align: center;">Καλώς ήρθες πίσω!</div>
+            <div class="phone-input">Username</div>
+            <div class="phone-input">Password</div>
+            <div class="phone-btn-fake">Είσοδος</div>
+          </div>
+          <div class="phone-watermark">Powered by Athlon</div>
+        </div>
+      </div>
+      <!-- Phone 2: Home -->
+      <div class="phone-frame dark">
+        <div class="phone-content lime" id="phone2">
+          <div class="phone-dash-header">
+            <div class="phone-dash-logo">
+              <img src="data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' fill='%23000'/><text x='50' y='42' text-anchor='middle' fill='%23FFD700' font-family='Arial' font-weight='900' font-size='18'>MAX</text><text x='50' y='62' text-anchor='middle' fill='%23FFD700' font-family='Arial' font-weight='900' font-size='10'>FITNESS</text></svg>" alt=""/>
+            </div>
+            <div class="phone-dash-info">
+              <div class="phone-dash-name">Θάνος Αλιμπάκης</div>
+              <div class="phone-dash-studio">Maxfitness</div>
+            </div>
+          </div>
+          <div class="phone-greet">Hey Βασίλη! 👋</div>
+          <div class="phone-card-fake">
+            <div class="ttl">Σήμερα</div>
+            <div class="val">Push Πρωτόκολλο 2</div>
+          </div>
+          <div class="phone-card-fake">
+            <div class="ttl">Past week</div>
+            <div class="val">3/4 ολοκληρώθηκαν</div>
+          </div>
+          <div class="phone-card-fake">
+            <div class="ttl">Streak</div>
+            <div class="val">🔥 12 ημέρες</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div style="margin-top: 16px; text-align: center; font-size: 11px; color: var(--text-3); line-height: 1.5;">
+      Άλλαξε χρώμα / λογότυπο και θα δεις τη διαφορά<br>
+      <strong style="color: var(--text-2);">αυτόματα</strong> στο preview.
+    </div>
+  </div>
+</div>
+</body>
+</html>
