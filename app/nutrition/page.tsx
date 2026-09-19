@@ -318,7 +318,14 @@ export default function NutritionPlannerPage() {
       <div className="grid grid-cols-1 md:grid-cols-[320px_1fr]">
         <Library onAdd={addFoodToExpandedMeal} expandedMealName={meals.find((m) => m.uid === expandedUid)?.name ?? null} />
         <main className="mx-auto w-full max-w-[920px] px-6 pb-12 pt-8 md:px-10">
-          <PlanHeader totals={totals} pPct={pPct} cPct={cPct} fPct={fPct} />
+          <PlanHeader
+            totals={totals}
+            pPct={pPct}
+            cPct={cPct}
+            fPct={fPct}
+            planName={planName}
+            onPlanNameChange={setPlanName}
+          />
           <div className="mt-6 flex flex-col gap-3">
             {meals.map((m) => (
               <MealCard
@@ -558,11 +565,15 @@ function PlanHeader({
   pPct,
   cPct,
   fPct,
+  planName,
+  onPlanNameChange,
 }: {
   totals: { kcal: number; p: number; c: number; f: number };
   pPct: number;
   cPct: number;
   fPct: number;
+  planName: string;
+  onPlanNameChange: (v: string) => void;
 }) {
   return (
     <div className="mb-6">
@@ -571,7 +582,8 @@ function PlanHeader({
         Cut · Επίπεδο: Μέτριο
       </div>
       <input
-        defaultValue="Cut Πλάνο · Βασίλης"
+        value={planName}
+        onChange={(e) => onPlanNameChange(e.target.value)}
         className="mb-2 w-full border-0 bg-transparent text-[34px] font-extrabold leading-[1.1] tracking-[-0.03em] text-text-1 outline-none"
       />
       <div className="text-sm leading-[1.5] text-text-2">
