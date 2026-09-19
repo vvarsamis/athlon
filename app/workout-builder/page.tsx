@@ -2,7 +2,9 @@
 
 import Image from "next/image";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useState } from "react";
+import { createClient } from "../../lib/supabase/client";
 
 const exDb = "https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises";
 
@@ -142,8 +144,98 @@ const initialExercises: WorkoutEx[] = [
 ];
 
 export default function WorkoutBuilderPage() {
+  const router = useRouter();
   const [exercises, setExercises] = useState<WorkoutEx[]>(initialExercises);
   const [expandedUid, setExpandedUid] = useState<string | null>("ex-01");
+  const [name, setName] = useState("Push · Πρωτόκολλο 2");
+  const [title, setTitle] = useState("Στήθος, ώμοι & τρικέφαλα");
+  const [saving, setSaving] = useState(false);
+  const [saveState, setSaveState] = useState<
+    | { kind: "idle" }
+    | { kind: "success"; assignedTo: number }
+    | { kind: "error"; msg: string }
+  >({ kind: "idle" });
+
+  async function saveAndAssign() {
+    setSaving(true);
+    setSaveState({ kind: "idle" });
+    const supabase = createClient();
+    const { data: userData } = await supabase.auth.getUser();
+    const userId = userData.user?.id;
+    if (!userId) {
+      setSaving(false);
+      setSaveState({ kind: "error", msg: "Δεν είσαι συνδεδεμένος." });
+      return;
+    }
+
+    // 1. Insert program
+    const { data: programRow, error: progErr } = await supabase
+      .from("programs")
+      .insert({
+        trainer_id: userId,
+        name: name.trim() || "Πρόγραμμα χωρίς όνομα",
+        title: title.trim() || "Χωρίς τίτλο",
+        subtitle: "Δευτέρα + Πέμπτη · ενδιάμεσο επίπεδο · 60' στόχος",
+        estimated_duration_min: Math.max(20, exercises.length * 8),
+        estimated_kcal: exercises.length * 75,
+      })
+      .select("id")
+      .single();
+    if (progErr || !programRow) {
+      setSaving(false);
+      setSaveState({
+        kind: "error",
+        msg: progErr?.message ?? "Σφάλμα αποθήκευσης.",
+      });
+      return;
+    }
+
+    // 2. Insert exercises
+    const exerciseRows = exercises.map((ex, i) => ({
+      program_id: programRow.id,
+      position: i,
+      name: ex.name,
+      image_url: ex.img,
+      tags: ex.tags,
+      sets: ex.sets,
+      reps: ex.reps,
+      rest_seconds: parseInt(ex.rest, 10) || null,
+      notes: ex.notes ?? null,
+    }));
+    const { error: exErr } = await supabase
+      .from("program_exercises")
+      .insert(exerciseRows);
+    if (exErr) {
+      setSaving(false);
+      setSaveState({ kind: "error", msg: exErr.message });
+      return;
+    }
+
+    // 3. Assign to all trainer's clients (mass assign for MVP)
+    const { data: updateData, error: updErr } = await supabase
+      .from("trainer_clients")
+      .update({ assigned_program_id: programRow.id })
+      .eq("trainer_id", userId)
+      .eq("status", "active")
+      .select("client_id");
+    if (updErr) {
+      setSaving(false);
+      setSaveState({
+        kind: "error",
+        msg: `Πρόγραμμα σώθηκε αλλά η ανάθεση απέτυχε: ${updErr.message}`,
+      });
+      return;
+    }
+
+    setSaving(false);
+    setSaveState({
+      kind: "success",
+      assignedTo: updateData?.length ?? 0,
+    });
+
+    // Refresh so trainer dashboard reflects changes
+    router.refresh();
+  }
 
   function addExerciseFromLib(item: LibItem) {
     setExercises((prev) => [
@@ -171,11 +263,22 @@ export default function WorkoutBuilderPage() {
 
   return (
     <div className="min-h-screen">
-      <TopBar />
+      <TopBar
+        name={name}
+        saving={saving}
+        saveState={saveState}
+        onSave={saveAndAssign}
+      />
       <div className="grid grid-cols-1 md:grid-cols-[320px_1fr]">
         <Library onAdd={addExerciseFromLib} />
         <main className="mx-auto w-full max-w-[920px] px-6 pb-12 pt-8 md:px-10">
-          <WorkoutHeader count={exercises.length} />
+          <WorkoutHeader
+            count={exercises.length}
+            name={name}
+            onNameChange={setName}
+            title={title}
+            onTitleChange={setTitle}
+          />
           <div className="mt-6 flex flex-col gap-2.5">
             {exercises.map((ex, i) => (
               <ExerciseCard
@@ -197,7 +300,20 @@ export default function WorkoutBuilderPage() {
   );
 }
 
-function TopBar() {
+function TopBar({
+  name,
+  saving,
+  saveState,
+  onSave,
+}: {
+  name: string;
+  saving: boolean;
+  saveState:
+    | { kind: "idle" }
+    | { kind: "success"; assignedTo: number }
+    | { kind: "error"; msg: string };
+  onSave: () => void;
+}) {
   return (
     <div className="sticky top-0 z-50 flex h-16 items-center gap-4 border-b border-border bg-[#080808] px-6">
       <Link
@@ -223,16 +339,25 @@ function TopBar() {
           Πρόγραμμα <span className="text-accent">·</span> Επεξεργασία
         </div>
         <h1 className="flex items-center gap-2 text-[17px] font-extrabold tracking-[-0.015em]">
-          Push · Πρωτόκολλο 2
+          {name}
         </h1>
       </div>
-      <div className="hidden items-center gap-1.5 text-[11px] font-semibold text-text-3 lg:flex">
-        <span className="h-1.5 w-1.5 rounded-full bg-success shadow-[0_0_6px_var(--success)]" />
-        Αποθηκεύτηκε <strong className="text-text-2">τοπικά</strong>
-      </div>
+      {saveState.kind === "success" && (
+        <div className="hidden items-center gap-1.5 rounded-lg border border-success/30 bg-success/[0.08] px-3 py-1.5 text-[11px] font-semibold text-success lg:flex">
+          ✓ Αποθηκεύτηκε — ανατέθηκε σε {saveState.assignedTo}{" "}
+          {saveState.assignedTo === 1 ? "πελάτη" : "πελάτες"}
+        </div>
+      )}
+      {saveState.kind === "error" && (
+        <div className="hidden items-center gap-1.5 rounded-lg border border-danger/30 bg-danger/[0.08] px-3 py-1.5 text-[11px] font-semibold text-danger lg:flex max-w-[280px] truncate">
+          {saveState.msg}
+        </div>
+      )}
       <button
         type="button"
-        className="flex items-center gap-2 rounded-[10px] bg-accent px-3.5 py-2.5 text-[13px] font-bold text-[#0A0A0A] shadow-[0_0_20px_rgba(197,255,0,0.3)] hover:shadow-[0_0_32px_rgba(197,255,0,0.5)]"
+        onClick={onSave}
+        disabled={saving}
+        className="flex items-center gap-2 rounded-[10px] bg-accent px-3.5 py-2.5 text-[13px] font-bold text-[#0A0A0A] shadow-[0_0_20px_rgba(197,255,0,0.3)] hover:shadow-[0_0_32px_rgba(197,255,0,0.5)] disabled:cursor-not-allowed disabled:opacity-60"
       >
         <svg
           width="14"
@@ -247,7 +372,7 @@ function TopBar() {
           <line x1="22" y1="2" x2="11" y2="13" />
           <polygon points="22 2 15 22 11 13 2 9 22 2" />
         </svg>
-        Ανάθεση
+        {saving ? "Αποθήκευση..." : "Αποθήκευση & Ανάθεση"}
       </button>
     </div>
   );
@@ -380,15 +505,29 @@ function LibrarySection({
   );
 }
 
-function WorkoutHeader({ count }: { count: number }) {
+function WorkoutHeader({
+  count,
+  name,
+  onNameChange,
+  title,
+  onTitleChange,
+}: {
+  count: number;
+  name: string;
+  onNameChange: (v: string) => void;
+  title: string;
+  onTitleChange: (v: string) => void;
+}) {
   return (
     <div className="mb-7">
-      <div className="mb-3 inline-flex items-center gap-1.5 rounded-full border border-accent/20 bg-accent/[0.12] px-2.5 py-[5px] text-[10px] font-extrabold uppercase tracking-[0.12em] text-accent">
-        <span className="h-1.5 w-1.5 rounded-full bg-accent shadow-[0_0_6px_var(--accent)]" />
-        Push · Πρωτόκολλο 2
-      </div>
       <input
-        defaultValue="Στήθος, ώμοι & τρικέφαλα"
+        value={name}
+        onChange={(e) => onNameChange(e.target.value)}
+        className="mb-3 inline-flex w-auto items-center gap-1.5 rounded-full border border-accent/20 bg-accent/[0.12] px-2.5 py-[5px] text-[10px] font-extrabold uppercase tracking-[0.12em] text-accent outline-none focus:border-accent"
+      />
+      <input
+        value={title}
+        onChange={(e) => onTitleChange(e.target.value)}
         className="mb-2 w-full border-0 bg-transparent text-[34px] font-extrabold leading-[1.1] tracking-[-0.03em] text-text-1 outline-none"
       />
       <div className="text-sm leading-[1.5] text-text-2">

@@ -35,16 +35,49 @@ export default async function HomePage() {
 
   const name = vocative(firstName(user?.user_metadata?.full_name, user?.email));
 
-  // Ο προπονητής του (αν έχει) — από trainer_clients + profiles
+  // Ο προπονητής + το ανατεθειμένο πρόγραμμα
   let trainerName: string | null = null;
+  let assignedProgram: {
+    name: string;
+    title: string;
+    duration: number | null;
+    kcal: number | null;
+    exerciseCount: number;
+  } | null = null;
   if (user) {
     const { data: link } = await supabase
       .from("trainer_clients")
-      .select("trainer:profiles!trainer_clients_trainer_id_fkey(full_name)")
+      .select(
+        "assigned_program_id, trainer:profiles!trainer_clients_trainer_id_fkey(full_name)",
+      )
       .eq("client_id", user.id)
       .maybeSingle();
-    const linkAny = link as { trainer: { full_name: string | null } | null } | null;
+    const linkAny = link as {
+      assigned_program_id: string | null;
+      trainer: { full_name: string | null } | null;
+    } | null;
     trainerName = linkAny?.trainer?.full_name ?? null;
+
+    if (linkAny?.assigned_program_id) {
+      const { data: prog } = await supabase
+        .from("programs")
+        .select("name, title, estimated_duration_min, estimated_kcal")
+        .eq("id", linkAny.assigned_program_id)
+        .single();
+      const { count: exCount } = await supabase
+        .from("program_exercises")
+        .select("id", { count: "exact", head: true })
+        .eq("program_id", linkAny.assigned_program_id);
+      if (prog) {
+        assignedProgram = {
+          name: prog.name,
+          title: prog.title,
+          duration: prog.estimated_duration_min,
+          kcal: prog.estimated_kcal,
+          exerciseCount: exCount ?? 0,
+        };
+      }
+    }
   }
 
   return (
@@ -55,7 +88,7 @@ export default async function HomePage() {
         <StreakCard />
 
         <SectionTitle title="ΣΗΜΕΡΑ · ΔΕΥΤΕΡΑ 25 ΜΑΪ" />
-        <TodayCard trainerName={trainerName} />
+        <TodayCard trainerName={trainerName} program={assignedProgram} />
 
         <StatsGrid />
 
@@ -201,7 +234,27 @@ function SectionTitle({
   );
 }
 
-function TodayCard({ trainerName }: { trainerName: string | null }) {
+function TodayCard({
+  trainerName,
+  program,
+}: {
+  trainerName: string | null;
+  program: {
+    name: string;
+    title: string;
+    duration: number | null;
+    kcal: number | null;
+    exerciseCount: number;
+  } | null;
+}) {
+  const displayName = program?.name ?? "Push · Πρωτόκολλο 2";
+  const displayTitle = program?.title ?? "Στήθος, ώμοι & τρικέφαλα";
+  const displayDuration = program?.duration ?? 60;
+  const displayKcal = program?.kcal ?? 520;
+  const displayExercises = program?.exerciseCount ?? 7;
+  const byline = trainerName
+    ? `από ${trainerName}${program ? "" : " · δείγμα"}`
+    : "Δείγμα προγράμματος";
   return (
     <div className="relative mx-5 overflow-hidden rounded-3xl border border-[#2E2E2E] bg-gradient-to-br from-[#1F1F1F] to-[#111] p-[22px]">
       <div
@@ -213,15 +266,12 @@ function TodayCard({ trainerName }: { trainerName: string | null }) {
       />
       <div className="relative mb-3.5 inline-flex items-center gap-1.5 rounded-full border border-accent/20 bg-accent/[0.12] px-[11px] py-[5px] text-[10px] font-extrabold uppercase tracking-[0.12em] text-accent">
         <span className="h-1.5 w-1.5 rounded-full bg-accent shadow-[0_0_8px_var(--accent)]" />
-        Push · Πρωτόκολλο 2
+        {displayName}
       </div>
       <h3 className="relative mb-1.5 text-[26px] font-extrabold leading-[1.12] tracking-[-0.025em]">
-        Στήθος, ώμοι
-        <br />& τρικέφαλα
+        {displayTitle}
       </h3>
-      <div className="relative mb-[18px] text-[13px] text-text-2">
-        {trainerName ? `από ${trainerName}` : "Δείγμα προγράμματος"}
-      </div>
+      <div className="relative mb-[18px] text-[13px] text-text-2">{byline}</div>
       <div className="relative mb-5 flex gap-[18px]">
         <MetaItem
           icon={
@@ -237,7 +287,7 @@ function TodayCard({ trainerName }: { trainerName: string | null }) {
               <polyline points="12 6 12 12 16 14" />
             </svg>
           }
-          value="60"
+          value={String(displayDuration)}
           label="λεπτά"
         />
         <MetaItem
@@ -256,7 +306,7 @@ function TodayCard({ trainerName }: { trainerName: string | null }) {
               <line x1="4" y1="15" x2="20" y2="15" />
             </svg>
           }
-          value="7"
+          value={String(displayExercises)}
           label="ασκήσεις"
         />
         <MetaItem
@@ -272,7 +322,7 @@ function TodayCard({ trainerName }: { trainerName: string | null }) {
               <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z" />
             </svg>
           }
-          value="520"
+          value={String(displayKcal)}
           label="kcal"
         />
       </div>
