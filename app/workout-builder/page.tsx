@@ -168,31 +168,29 @@ export default function WorkoutBuilderPage() {
       return;
     }
 
-    // 1. Insert program
-    const { data: programRow, error: progErr } = await supabase
-      .from("programs")
-      .insert({
-        trainer_id: userId,
-        name: name.trim() || "Πρόγραμμα χωρίς όνομα",
-        title: title.trim() || "Χωρίς τίτλο",
-        subtitle: "Δευτέρα + Πέμπτη · ενδιάμεσο επίπεδο · 60' στόχος",
-        estimated_duration_min: Math.max(20, exercises.length * 8),
-        estimated_kcal: exercises.length * 75,
-      })
-      .select("id")
-      .single();
-    if (progErr || !programRow) {
+    // Pre-generate program UUID για να μπορέσουμε να τρέξουμε παράλληλα
+    // τα exercise inserts και το trainer_clients update
+    const programId = crypto.randomUUID();
+
+    // 1. Insert program (πρέπει να προηγηθεί για την FK)
+    const { error: progErr } = await supabase.from("programs").insert({
+      id: programId,
+      trainer_id: userId,
+      name: name.trim() || "Πρόγραμμα χωρίς όνομα",
+      title: title.trim() || "Χωρίς τίτλο",
+      subtitle: "Δευτέρα + Πέμπτη · ενδιάμεσο επίπεδο · 60' στόχος",
+      estimated_duration_min: Math.max(20, exercises.length * 8),
+      estimated_kcal: exercises.length * 75,
+    });
+    if (progErr) {
       setSaving(false);
-      setSaveState({
-        kind: "error",
-        msg: progErr?.message ?? "Σφάλμα αποθήκευσης.",
-      });
+      setSaveState({ kind: "error", msg: progErr.message });
       return;
     }
 
-    // 2. Insert exercises
+    // 2. Παράλληλα: batch insert exercises + assign to clients
     const exerciseRows = exercises.map((ex, i) => ({
-      program_id: programRow.id,
+      program_id: programId,
       position: i,
       name: ex.name,
       image_url: ex.img,
@@ -202,30 +200,29 @@ export default function WorkoutBuilderPage() {
       rest_seconds: parseInt(ex.rest, 10) || null,
       notes: ex.notes ?? null,
     }));
-    const { error: exErr } = await supabase
-      .from("program_exercises")
-      .insert(exerciseRows);
-    if (exErr) {
+    const [exResult, updResult] = await Promise.all([
+      supabase.from("program_exercises").insert(exerciseRows),
+      supabase
+        .from("trainer_clients")
+        .update({ assigned_program_id: programId })
+        .eq("trainer_id", userId)
+        .eq("status", "active")
+        .select("client_id"),
+    ]);
+    if (exResult.error) {
       setSaving(false);
-      setSaveState({ kind: "error", msg: exErr.message });
+      setSaveState({ kind: "error", msg: exResult.error.message });
       return;
     }
-
-    // 3. Assign to all trainer's clients (mass assign for MVP)
-    const { data: updateData, error: updErr } = await supabase
-      .from("trainer_clients")
-      .update({ assigned_program_id: programRow.id })
-      .eq("trainer_id", userId)
-      .eq("status", "active")
-      .select("client_id");
-    if (updErr) {
+    if (updResult.error) {
       setSaving(false);
       setSaveState({
         kind: "error",
-        msg: `Πρόγραμμα σώθηκε αλλά η ανάθεση απέτυχε: ${updErr.message}`,
+        msg: `Πρόγραμμα σώθηκε αλλά η ανάθεση απέτυχε: ${updResult.error.message}`,
       });
       return;
     }
+    const updateData = updResult.data;
 
     setSaving(false);
     setSaveState({

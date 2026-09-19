@@ -136,89 +136,86 @@ export default function NutritionPlannerPage() {
       return;
     }
 
-    // 1. Insert plan
-    const { data: plan, error: planErr } = await supabase
-      .from("nutrition_plans")
-      .insert({
-        trainer_id: userId,
-        name: planName.trim() || "Πλάνο χωρίς όνομα",
-        subtitle: "Cut · Επίπεδο: Μέτριο",
-        target_kcal: totalKcal,
-        target_kcal_min: 2150,
-        target_kcal_max: 2250,
-      })
-      .select("id")
-      .single();
-    if (planErr || !plan) {
+    // Pre-generate UUIDs έτσι ώστε τα child inserts να μπορούν να τρέξουν
+    // παράλληλα με το plan/meal insert (foreign keys ισχύουν στο commit end)
+    const planId = crypto.randomUUID();
+    const mealsWithIds = meals.map((m) => ({ ...m, mealId: crypto.randomUUID() }));
+
+    // 1. Insert plan (πρέπει να προηγηθεί για την FK)
+    const { error: planErr } = await supabase.from("nutrition_plans").insert({
+      id: planId,
+      trainer_id: userId,
+      name: planName.trim() || "Πλάνο χωρίς όνομα",
+      subtitle: "Cut · Επίπεδο: Μέτριο",
+      target_kcal: totalKcal,
+      target_kcal_min: 2150,
+      target_kcal_max: 2250,
+    });
+    if (planErr) {
       setSaving(false);
-      setSaveState({
-        kind: "error",
-        msg: planErr?.message ?? "Σφάλμα αποθήκευσης πλάνου.",
-      });
+      setSaveState({ kind: "error", msg: planErr.message });
       return;
     }
 
-    // 2. Insert meals (one at a time to get ids for foods)
-    for (let mi = 0; mi < meals.length; mi++) {
-      const m = meals[mi];
-      const { data: mealRow, error: mealErr } = await supabase
-        .from("nutrition_meals")
-        .insert({
-          plan_id: plan.id,
-          position: mi,
-          icon: m.icon,
-          name: m.name,
-          time: m.time,
-          notes: m.notes ?? null,
-        })
-        .select("id")
-        .single();
-      if (mealErr || !mealRow) {
+    // 2. Παράλληλα: batch insert meals + assign to clients
+    const mealRows = mealsWithIds.map((m, mi) => ({
+      id: m.mealId,
+      plan_id: planId,
+      position: mi,
+      icon: m.icon,
+      name: m.name,
+      time: m.time,
+      notes: m.notes ?? null,
+    }));
+    const [mealsResult, updResult] = await Promise.all([
+      supabase.from("nutrition_meals").insert(mealRows),
+      supabase
+        .from("trainer_clients")
+        .update({ assigned_nutrition_plan_id: planId })
+        .eq("trainer_id", userId)
+        .eq("status", "active")
+        .select("client_id"),
+    ]);
+    if (mealsResult.error) {
+      setSaving(false);
+      setSaveState({ kind: "error", msg: mealsResult.error.message });
+      return;
+    }
+
+    // 3. Batch insert all foods σε ένα call
+    const foodRows = mealsWithIds.flatMap((m) =>
+      m.foods.map((f, fi) => ({
+        meal_id: m.mealId,
+        position: fi,
+        emoji: f.emoji,
+        name: f.name,
+        qty: f.qty,
+        protein_g: f.p,
+        carbs_g: f.c,
+        fat_g: f.f,
+        kcal: f.k,
+      })),
+    );
+    if (foodRows.length > 0) {
+      const { error: foodErr } = await supabase
+        .from("nutrition_meal_foods")
+        .insert(foodRows);
+      if (foodErr) {
         setSaving(false);
-        setSaveState({
-          kind: "error",
-          msg: `Σφάλμα στο γεύμα "${m.name}": ${mealErr?.message}`,
-        });
+        setSaveState({ kind: "error", msg: foodErr.message });
         return;
       }
-      if (m.foods.length > 0) {
-        const foodRows = m.foods.map((f, fi) => ({
-          meal_id: mealRow.id,
-          position: fi,
-          emoji: f.emoji,
-          name: f.name,
-          qty: f.qty,
-          protein_g: f.p,
-          carbs_g: f.c,
-          fat_g: f.f,
-          kcal: f.k,
-        }));
-        const { error: foodErr } = await supabase
-          .from("nutrition_meal_foods")
-          .insert(foodRows);
-        if (foodErr) {
-          setSaving(false);
-          setSaveState({ kind: "error", msg: foodErr.message });
-          return;
-        }
-      }
     }
 
-    // 3. Assign to all active clients
-    const { data: updated, error: updErr } = await supabase
-      .from("trainer_clients")
-      .update({ assigned_nutrition_plan_id: plan.id })
-      .eq("trainer_id", userId)
-      .eq("status", "active")
-      .select("client_id");
-    if (updErr) {
+    if (updResult.error) {
       setSaving(false);
       setSaveState({
         kind: "error",
-        msg: `Πλάνο σώθηκε αλλά η ανάθεση απέτυχε: ${updErr.message}`,
+        msg: `Πλάνο σώθηκε αλλά η ανάθεση απέτυχε: ${updResult.error.message}`,
       });
       return;
     }
+    const updated = updResult.data;
 
     setSaving(false);
     setSaveState({ kind: "success", assignedTo: updated?.length ?? 0 });
