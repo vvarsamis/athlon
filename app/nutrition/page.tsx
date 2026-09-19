@@ -2,7 +2,9 @@
 
 import Image from "next/image";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
+import { createClient } from "../../lib/supabase/client";
 
 type FoodItem = {
   emoji: string;
@@ -111,8 +113,117 @@ const initialMeals: Meal[] = [
 ];
 
 export default function NutritionPlannerPage() {
+  const router = useRouter();
   const [meals, setMeals] = useState<Meal[]>(initialMeals);
   const [expandedUid, setExpandedUid] = useState<string | null>("meal-1");
+  const [planName, setPlanName] = useState("Cut Πλάνο · Βασίλης");
+  const [saving, setSaving] = useState(false);
+  const [saveState, setSaveState] = useState<
+    | { kind: "idle" }
+    | { kind: "success"; assignedTo: number }
+    | { kind: "error"; msg: string }
+  >({ kind: "idle" });
+
+  async function saveAndAssign(totalKcal: number) {
+    setSaving(true);
+    setSaveState({ kind: "idle" });
+    const supabase = createClient();
+    const { data: userData } = await supabase.auth.getUser();
+    const userId = userData.user?.id;
+    if (!userId) {
+      setSaving(false);
+      setSaveState({ kind: "error", msg: "Δεν είσαι συνδεδεμένος." });
+      return;
+    }
+
+    // 1. Insert plan
+    const { data: plan, error: planErr } = await supabase
+      .from("nutrition_plans")
+      .insert({
+        trainer_id: userId,
+        name: planName.trim() || "Πλάνο χωρίς όνομα",
+        subtitle: "Cut · Επίπεδο: Μέτριο",
+        target_kcal: totalKcal,
+        target_kcal_min: 2150,
+        target_kcal_max: 2250,
+      })
+      .select("id")
+      .single();
+    if (planErr || !plan) {
+      setSaving(false);
+      setSaveState({
+        kind: "error",
+        msg: planErr?.message ?? "Σφάλμα αποθήκευσης πλάνου.",
+      });
+      return;
+    }
+
+    // 2. Insert meals (one at a time to get ids for foods)
+    for (let mi = 0; mi < meals.length; mi++) {
+      const m = meals[mi];
+      const { data: mealRow, error: mealErr } = await supabase
+        .from("nutrition_meals")
+        .insert({
+          plan_id: plan.id,
+          position: mi,
+          icon: m.icon,
+          name: m.name,
+          time: m.time,
+          notes: m.notes ?? null,
+        })
+        .select("id")
+        .single();
+      if (mealErr || !mealRow) {
+        setSaving(false);
+        setSaveState({
+          kind: "error",
+          msg: `Σφάλμα στο γεύμα "${m.name}": ${mealErr?.message}`,
+        });
+        return;
+      }
+      if (m.foods.length > 0) {
+        const foodRows = m.foods.map((f, fi) => ({
+          meal_id: mealRow.id,
+          position: fi,
+          emoji: f.emoji,
+          name: f.name,
+          qty: f.qty,
+          protein_g: f.p,
+          carbs_g: f.c,
+          fat_g: f.f,
+          kcal: f.k,
+        }));
+        const { error: foodErr } = await supabase
+          .from("nutrition_meal_foods")
+          .insert(foodRows);
+        if (foodErr) {
+          setSaving(false);
+          setSaveState({ kind: "error", msg: foodErr.message });
+          return;
+        }
+      }
+    }
+
+    // 3. Assign to all active clients
+    const { data: updated, error: updErr } = await supabase
+      .from("trainer_clients")
+      .update({ assigned_nutrition_plan_id: plan.id })
+      .eq("trainer_id", userId)
+      .eq("status", "active")
+      .select("client_id");
+    if (updErr) {
+      setSaving(false);
+      setSaveState({
+        kind: "error",
+        msg: `Πλάνο σώθηκε αλλά η ανάθεση απέτυχε: ${updErr.message}`,
+      });
+      return;
+    }
+
+    setSaving(false);
+    setSaveState({ kind: "success", assignedTo: updated?.length ?? 0 });
+    router.refresh();
+  }
 
   const totals = useMemo(() => {
     return meals.reduce(
@@ -196,7 +307,14 @@ export default function NutritionPlannerPage() {
 
   return (
     <div className="min-h-screen">
-      <TopBar totalKcal={totals.kcal} />
+      <TopBar
+        totalKcal={totals.kcal}
+        planName={planName}
+        onPlanNameChange={setPlanName}
+        saving={saving}
+        saveState={saveState}
+        onSave={() => saveAndAssign(totals.kcal)}
+      />
       <div className="grid grid-cols-1 md:grid-cols-[320px_1fr]">
         <Library onAdd={addFoodToExpandedMeal} expandedMealName={meals.find((m) => m.uid === expandedUid)?.name ?? null} />
         <main className="mx-auto w-full max-w-[920px] px-6 pb-12 pt-8 md:px-10">
@@ -222,7 +340,24 @@ export default function NutritionPlannerPage() {
   );
 }
 
-function TopBar({ totalKcal }: { totalKcal: number }) {
+function TopBar({
+  totalKcal,
+  planName,
+  onPlanNameChange,
+  saving,
+  saveState,
+  onSave,
+}: {
+  totalKcal: number;
+  planName: string;
+  onPlanNameChange: (v: string) => void;
+  saving: boolean;
+  saveState:
+    | { kind: "idle" }
+    | { kind: "success"; assignedTo: number }
+    | { kind: "error"; msg: string };
+  onSave: () => void;
+}) {
   return (
     <div className="sticky top-0 z-50 flex h-16 items-center gap-4 border-b border-border bg-[#080808] px-6">
       <Link
@@ -248,16 +383,30 @@ function TopBar({ totalKcal }: { totalKcal: number }) {
           Πλάνο διατροφής <span className="text-accent">·</span> Επεξεργασία
         </div>
         <h1 className="flex items-center gap-2 text-[17px] font-extrabold tracking-[-0.015em]">
-          Cut Πλάνο · <span className="font-mono text-accent">{totalKcal}</span> kcal
+          <input
+            value={planName}
+            onChange={(e) => onPlanNameChange(e.target.value)}
+            className="min-w-0 flex-1 border-0 bg-transparent p-0 text-[17px] font-extrabold tracking-[-0.015em] outline-none"
+          />
+          <span className="font-mono text-accent">· {totalKcal} kcal</span>
         </h1>
       </div>
-      <div className="hidden items-center gap-1.5 text-[11px] font-semibold text-text-3 lg:flex">
-        <span className="h-1.5 w-1.5 rounded-full bg-success shadow-[0_0_6px_var(--success)]" />
-        Αποθηκεύτηκε <strong className="text-text-2">τοπικά</strong>
-      </div>
+      {saveState.kind === "success" && (
+        <div className="hidden items-center gap-1.5 rounded-lg border border-success/30 bg-success/[0.08] px-3 py-1.5 text-[11px] font-semibold text-success lg:flex">
+          ✓ Αποθηκεύτηκε — ανατέθηκε σε {saveState.assignedTo}{" "}
+          {saveState.assignedTo === 1 ? "πελάτη" : "πελάτες"}
+        </div>
+      )}
+      {saveState.kind === "error" && (
+        <div className="hidden items-center gap-1.5 rounded-lg border border-danger/30 bg-danger/[0.08] px-3 py-1.5 text-[11px] font-semibold text-danger lg:flex max-w-[280px] truncate">
+          {saveState.msg}
+        </div>
+      )}
       <button
         type="button"
-        className="flex items-center gap-2 rounded-[10px] bg-accent px-3.5 py-2.5 text-[13px] font-bold text-[#0A0A0A] shadow-[0_0_20px_rgba(197,255,0,0.3)] hover:shadow-[0_0_32px_rgba(197,255,0,0.5)]"
+        onClick={onSave}
+        disabled={saving}
+        className="flex items-center gap-2 rounded-[10px] bg-accent px-3.5 py-2.5 text-[13px] font-bold text-[#0A0A0A] shadow-[0_0_20px_rgba(197,255,0,0.3)] hover:shadow-[0_0_32px_rgba(197,255,0,0.5)] disabled:cursor-not-allowed disabled:opacity-60"
       >
         <svg
           width="14"
@@ -272,7 +421,7 @@ function TopBar({ totalKcal }: { totalKcal: number }) {
           <line x1="22" y1="2" x2="11" y2="13" />
           <polygon points="22 2 15 22 11 13 2 9 22 2" />
         </svg>
-        Ανάθεση
+        {saving ? "Αποθήκευση..." : "Αποθήκευση & Ανάθεση"}
       </button>
     </div>
   );
