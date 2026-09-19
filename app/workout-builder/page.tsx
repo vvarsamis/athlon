@@ -261,6 +261,10 @@ export default function WorkoutBuilderPage() {
     setExpandedUid((cur) => (cur === uid ? null : uid));
   }
 
+  function updateExercise(uid: string, patch: Partial<WorkoutEx>) {
+    setExercises((prev) => prev.map((e) => (e.uid === uid ? { ...e, ...patch } : e)));
+  }
+
   return (
     <div className="min-h-screen">
       <TopBar
@@ -288,6 +292,7 @@ export default function WorkoutBuilderPage() {
                 expanded={expandedUid === ex.uid}
                 onToggle={() => toggleExpand(ex.uid)}
                 onDelete={() => deleteExercise(ex.uid)}
+                onUpdate={(patch) => updateExercise(ex.uid, patch)}
               />
             ))}
           </div>
@@ -676,12 +681,14 @@ function ExerciseCard({
   expanded,
   onToggle,
   onDelete,
+  onUpdate,
 }: {
   ex: WorkoutEx;
   num: string;
   expanded: boolean;
   onToggle: () => void;
   onDelete: () => void;
+  onUpdate: (patch: Partial<WorkoutEx>) => void;
 }) {
   return (
     <div
@@ -794,10 +801,22 @@ function ExerciseCard({
       {expanded && (
         <div className="px-3.5 pb-4 pl-[70px]">
           <div className="mb-3.5 grid grid-cols-2 gap-2.5 lg:grid-cols-4">
-            <ConfigInput label="Σετ" defaultValue={ex.sets} />
-            <ConfigInput label="Επαναλήψεις" defaultValue={ex.reps} />
-            <ConfigInput label="Ξεκούραση (sec)" defaultValue={ex.rest} />
-            <ConfigInput label="Tempo" defaultValue="2-0-2-0" />
+            <ConfigInput
+              label="Σετ"
+              value={ex.sets}
+              onChange={(v) => onUpdate({ sets: v })}
+            />
+            <ConfigInput
+              label="Επαναλήψεις"
+              value={ex.reps}
+              onChange={(v) => onUpdate({ reps: v })}
+            />
+            <ConfigInput
+              label="Ξεκούραση (sec)"
+              value={ex.rest}
+              onChange={(v) => onUpdate({ rest: v })}
+            />
+            <ConfigInput label="Tempo" value="2-0-2-0" onChange={() => {}} />
           </div>
           <div>
             <div className="mb-1.5 flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-[0.1em] text-text-3">
@@ -807,7 +826,8 @@ function ExerciseCard({
               </span>
             </div>
             <textarea
-              defaultValue={ex.notes ?? ""}
+              value={ex.notes ?? ""}
+              onChange={(e) => onUpdate({ notes: e.target.value })}
               placeholder="Π.χ. Στο τελευταίο σετ βγάλε drop set..."
               className="min-h-[70px] w-full resize-y rounded-[10px] border border-border bg-surface-2 p-3 text-[13px] leading-[1.5] text-text-1 outline-none focus:border-accent"
             />
@@ -833,10 +853,12 @@ function ConfigCell({ label, val }: { label: string; val: string }) {
 
 function ConfigInput({
   label,
-  defaultValue,
+  value,
+  onChange,
 }: {
   label: string;
-  defaultValue: string;
+  value: string;
+  onChange: (v: string) => void;
 }) {
   return (
     <div className="rounded-[10px] border border-border bg-surface-2 px-3 py-2.5">
@@ -844,7 +866,8 @@ function ConfigInput({
         {label}
       </div>
       <input
-        defaultValue={defaultValue}
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
         className="w-full border-0 bg-transparent p-0 font-mono text-base font-extrabold text-text-1 outline-none"
       />
     </div>
