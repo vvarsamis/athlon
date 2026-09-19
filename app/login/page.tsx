@@ -6,6 +6,7 @@ import { Suspense, useState, type FormEvent } from "react";
 import { AthlonLogo } from "../_components/AthlonLogo";
 import { PhoneFrame } from "../_components/PhoneFrame";
 import { createClient } from "../../lib/supabase/client";
+import { getProfile, homePathFor } from "../../lib/profile";
 
 export default function LoginPage() {
   return (
@@ -18,7 +19,7 @@ export default function LoginPage() {
 function LoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const next = searchParams.get("next") ?? "/home";
+  const next = searchParams.get("next");
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -30,16 +31,25 @@ function LoginForm() {
     setError(null);
     setLoading(true);
     const supabase = createClient();
-    const { error } = await supabase.auth.signInWithPassword({
+    const { data, error } = await supabase.auth.signInWithPassword({
       email: email.trim(),
       password,
     });
-    setLoading(false);
     if (error) {
+      setLoading(false);
       setError(translateError(error.message));
       return;
     }
-    router.push(next);
+    // Route based on role — trainer to /trainer, client to /home
+    let target = next ?? "/home";
+    if (data.user) {
+      const profile = await getProfile(supabase, data.user.id);
+      if (profile) {
+        target = next ?? homePathFor(profile.user_type);
+      }
+    }
+    setLoading(false);
+    router.push(target);
     router.refresh();
   }
 

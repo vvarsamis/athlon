@@ -6,9 +6,11 @@ import { useState, type FormEvent } from "react";
 import { AthlonLogo } from "../_components/AthlonLogo";
 import { PhoneFrame } from "../_components/PhoneFrame";
 import { createClient } from "../../lib/supabase/client";
+import type { UserRole } from "../../lib/profile";
 
 export default function SignupPage() {
   const router = useRouter();
+  const [role, setRole] = useState<UserRole>("client");
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -26,7 +28,7 @@ export default function SignupPage() {
       email: email.trim(),
       password,
       options: {
-        data: { full_name: name.trim() },
+        data: { full_name: name.trim(), user_type: role },
       },
     });
     setLoading(false);
@@ -35,11 +37,9 @@ export default function SignupPage() {
       return;
     }
     if (data.session) {
-      // email confirmation OFF — user is logged in immediately
-      router.push("/home");
+      router.push(role === "trainer" ? "/trainer" : "/home");
       router.refresh();
     } else {
-      // email confirmation ON
       setInfo(
         "Σου στείλαμε email επιβεβαίωσης. Άνοιξέ το για να ενεργοποιήσεις τον λογαριασμό σου.",
       );
@@ -49,11 +49,11 @@ export default function SignupPage() {
   return (
     <PhoneFrame>
       <div className="relative z-[1] flex min-h-screen sm:min-h-[880px] flex-col px-7 pb-10 pt-20">
-        <div className="mb-12 mt-6">
+        <div className="mb-10 mt-6">
           <AthlonLogo />
         </div>
 
-        <div className="mb-8">
+        <div className="mb-6">
           <h1 className="mb-1.5 text-[26px] font-extrabold tracking-[-0.025em]">
             Δωρεάν δοκιμή
           </h1>
@@ -63,6 +63,8 @@ export default function SignupPage() {
         </div>
 
         <form onSubmit={onSubmit} className="flex flex-col gap-3">
+          <RoleToggle value={role} onChange={setRole} />
+
           <FloatingInput
             label="ΟΝΟΜΑ"
             type="text"
@@ -132,6 +134,74 @@ export default function SignupPage() {
         </div>
       </div>
     </PhoneFrame>
+  );
+}
+
+function RoleToggle({
+  value,
+  onChange,
+}: {
+  value: UserRole;
+  onChange: (v: UserRole) => void;
+}) {
+  return (
+    <div>
+      <div className="mb-1.5 px-1 text-[10px] font-bold uppercase tracking-[0.1em] text-text-3">
+        Είμαι
+      </div>
+      <div className="grid grid-cols-2 gap-2">
+        <RoleCard
+          active={value === "client"}
+          onClick={() => onChange("client")}
+          emoji="💪"
+          title="Αθλητής"
+          desc="Έχω/ψάχνω προπονητή"
+        />
+        <RoleCard
+          active={value === "trainer"}
+          onClick={() => onChange("trainer")}
+          emoji="🎯"
+          title="Προπονητής"
+          desc="Έχω πελάτες"
+        />
+      </div>
+    </div>
+  );
+}
+
+function RoleCard({
+  active,
+  onClick,
+  emoji,
+  title,
+  desc,
+}: {
+  active: boolean;
+  onClick: () => void;
+  emoji: string;
+  title: string;
+  desc: string;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={`flex flex-col items-start gap-1 rounded-[14px] border-[1.5px] p-3.5 text-left transition-all ${
+        active
+          ? "border-accent bg-accent/[0.08]"
+          : "border-border bg-surface-1 hover:border-[#303030]"
+      }`}
+    >
+      <div className="text-lg">{emoji}</div>
+      <div
+        className={`text-sm font-extrabold tracking-[-0.01em] ${
+          active ? "text-accent" : "text-text-1"
+        }`}
+      >
+        {title}
+      </div>
+      <div className="text-[11px] leading-tight text-text-3">{desc}</div>
+    </button>
   );
 }
 

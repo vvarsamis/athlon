@@ -1,10 +1,12 @@
 import Image from "next/image";
 import Link from "next/link";
+import { redirect } from "next/navigation";
 import { LogoutButton } from "../_components/LogoutButton";
 import { createClient } from "../../lib/supabase/server";
+import { getProfile } from "../../lib/profile";
 
-function firstName(meta: { full_name?: string } | undefined, email: string | undefined) {
-  const fn = meta?.full_name?.trim();
+function firstName(fullName: string | null | undefined, email: string | undefined) {
+  const fn = fullName?.trim();
   if (fn) return fn;
   if (email) return email.split("@")[0];
   return "Trainer";
@@ -20,7 +22,15 @@ export default async function TrainerDashboardPage() {
   const {
     data: { user },
   } = await supabase.auth.getUser();
-  const fullName = firstName(user?.user_metadata, user?.email);
+
+  if (user) {
+    const profile = await getProfile(supabase, user.id);
+    if (profile?.user_type === "client") {
+      redirect("/home");
+    }
+  }
+
+  const fullName = firstName(user?.user_metadata?.full_name, user?.email);
   const firstWord = vocative(fullName.split(/\s+/)[0]);
 
   return (
