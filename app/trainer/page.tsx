@@ -2,8 +2,8 @@ import Image from "next/image";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { LogoutButton } from "../_components/LogoutButton";
+import { InviteCodeCard } from "../_components/InviteCodeCard";
 import { createClient } from "../../lib/supabase/server";
-import { getProfile } from "../../lib/profile";
 
 function firstName(fullName: string | null | undefined, email: string | undefined) {
   const fn = fullName?.trim();
@@ -17,31 +17,57 @@ function vocative(name: string) {
   return name;
 }
 
+type ClientRow = {
+  client_id: string;
+  status: string;
+  joined_at: string;
+  profile: { full_name: string | null } | null;
+};
+
 export default async function TrainerDashboardPage() {
   const supabase = await createClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();
 
-  if (user) {
-    const profile = await getProfile(supabase, user.id);
-    if (profile?.user_type === "client") {
-      redirect("/home");
-    }
+  // Profile check (also redirects clients) — fetching inline gives us invite_code too
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("user_type, full_name, invite_code")
+    .eq("id", user!.id)
+    .single();
+
+  if (profile?.user_type === "client") {
+    redirect("/home");
   }
 
-  const fullName = firstName(user?.user_metadata?.full_name, user?.email);
+  // Πραγματικοί πελάτες του trainer
+  const { data: clientRows } = await supabase
+    .from("trainer_clients")
+    .select("client_id, status, joined_at, profile:profiles!trainer_clients_client_id_fkey(full_name)")
+    .eq("trainer_id", user!.id)
+    .order("joined_at", { ascending: false });
+
+  const clients = (clientRows as ClientRow[] | null) ?? [];
+  const activeClients = clients.filter((c) => c.status === "active").length;
+
+  const fullName = firstName(profile?.full_name ?? user?.user_metadata?.full_name, user?.email);
   const firstWord = vocative(fullName.split(/\s+/)[0]);
+  const inviteCode = profile?.invite_code ?? "";
 
   return (
     <div className="grid min-h-screen grid-cols-1 md:grid-cols-[240px_1fr]">
-      <Sidebar fullName={fullName} email={user?.email ?? ""} />
+      <Sidebar
+        fullName={fullName}
+        email={user?.email ?? ""}
+        clientCount={activeClients}
+      />
       <main className="min-w-0 px-4 pb-12 pt-6 md:px-8">
-        <DemoBanner />
-        <TopBar greeting={firstWord} />
-        <StatsRow />
+        <TopBar greeting={firstWord} clientCount={activeClients} />
+        <InviteCodeCard code={inviteCode} />
+        <StatsRow clientCount={activeClients} />
         <div className="grid grid-cols-1 gap-5 lg:grid-cols-[1.6fr_1fr]">
-          <ActivityPanel />
+          <ActivityPanel clients={clients} />
           <div className="flex flex-col gap-5">
             <NeedsAttentionPanel />
             <WeekChartPanel />
@@ -53,7 +79,15 @@ export default async function TrainerDashboardPage() {
   );
 }
 
-function Sidebar({ fullName, email }: { fullName: string; email: string }) {
+function Sidebar({
+  fullName,
+  email,
+  clientCount,
+}: {
+  fullName: string;
+  email: string;
+  clientCount: number;
+}) {
   return (
     <aside className="sticky top-0 hidden h-screen flex-col border-r border-border bg-[#080808] p-3.5 md:flex">
       <div className="mb-4 border-b border-border px-3 pb-6 pt-2">
@@ -79,7 +113,7 @@ function Sidebar({ fullName, email }: { fullName: string; email: string }) {
               Maxfitness
             </div>
             <div className="mt-px text-[10px] font-bold uppercase tracking-[0.08em] text-accent">
-              ● Pro · 23 clients
+              ● Pro · {clientCount} clients
             </div>
           </div>
         </div>
@@ -107,8 +141,7 @@ function Sidebar({ fullName, email }: { fullName: string; email: string }) {
           Dashboard
         </NavItem>
         <NavItem
-          alert
-          badge="3"
+          badge={clientCount > 0 ? String(clientCount) : undefined}
           icon={
             <svg
               viewBox="0 0 24 24"
@@ -300,18 +333,13 @@ function NavItem({
   );
 }
 
-function DemoBanner() {
-  return (
-    <div className="mb-5 rounded-lg border-l-[3px] border-accent bg-gradient-to-r from-accent/[0.12] to-transparent px-4 py-2.5 text-xs text-text-2">
-      <strong className="text-[11px] font-extrabold uppercase tracking-[0.04em] text-accent">
-        Demo
-      </strong>{" "}
-      · Αυτό βλέπει ο Θάνος (trainer) όταν μπαίνει το πρωί στο laptop του
-    </div>
-  );
-}
-
-function TopBar({ greeting }: { greeting: string }) {
+function TopBar({
+  greeting,
+  clientCount,
+}: {
+  greeting: string;
+  clientCount: number;
+}) {
   return (
     <div className="mb-7 flex flex-wrap items-center justify-between gap-4">
       <div>
@@ -319,7 +347,9 @@ function TopBar({ greeting }: { greeting: string }) {
           Καλημέρα, {greeting} <span className="text-accent">·</span>
         </h1>
         <p className="mt-1 text-sm text-text-2">
-          23 ενεργοί πελάτες · 12 προπονήσεις σήμερα · 3 χρειάζονται προσοχή
+          {clientCount === 0
+            ? "Κανένας πελάτης ακόμα. Μοιράσου τον κωδικό σου."
+            : `${clientCount} ${clientCount === 1 ? "ενεργός πελάτης" : "ενεργοί πελάτες"}`}
         </p>
       </div>
       <div className="flex items-center gap-2.5">
@@ -379,7 +409,7 @@ function PlusIcon() {
   );
 }
 
-function StatsRow() {
+function StatsRow({ clientCount }: { clientCount: number }) {
   return (
     <div className="mb-6 grid grid-cols-2 gap-4 lg:grid-cols-4">
       <StatCard
@@ -402,9 +432,9 @@ function StatsRow() {
             <path d="M16 3.13a4 4 0 0 1 0 7.75" />
           </svg>
         }
-        value="23"
-        delta="+3 αυτό το μήνα"
-        deltaTrend="up"
+        value={String(clientCount)}
+        delta={clientCount === 0 ? "Μοιράσου τον κωδικό" : "Πραγματικοί πελάτες"}
+        deltaTrend={clientCount === 0 ? "neutral" : "up"}
       />
       <StatCard
         label="Σήμερα ολοκληρώθηκαν"
@@ -595,7 +625,57 @@ function Panel({
 
 type StatusType = "in-progress" | "completed" | "missed" | "neutral";
 
-function ActivityPanel() {
+function ActivityPanel({ clients }: { clients: ClientRow[] }) {
+  // Αν υπάρχουν πραγματικοί πελάτες, δείξ' τους σαν λίστα με βασικά στοιχεία.
+  if (clients.length > 0) {
+    return (
+      <Panel
+        title="Οι πελάτες σου"
+        subtitle={`${clients.length} συνδεδεμένοι μέσω κωδικού πρόσκλησης`}
+        action={{ label: "Όλοι →", href: "#" }}
+      >
+        <div className="py-2">
+          {clients.map((c) => {
+            const name = c.profile?.full_name ?? "Χωρίς όνομα";
+            const joined = new Date(c.joined_at).toLocaleDateString("el-GR", {
+              day: "numeric",
+              month: "short",
+            });
+            return (
+              <div
+                key={c.client_id}
+                className="flex cursor-pointer items-center gap-3.5 px-[22px] py-3.5 transition-colors hover:bg-surface-2"
+              >
+                <div className="flex h-[38px] w-[38px] flex-shrink-0 items-center justify-center rounded-full bg-surface-3 text-[15px] font-extrabold text-text-1">
+                  {name.charAt(0).toUpperCase()}
+                </div>
+                <div className="min-w-0 flex-1">
+                  <div className="mb-0.5 flex items-baseline gap-2">
+                    <span className="text-sm font-bold tracking-[-0.01em]">
+                      {name}
+                    </span>
+                    <StatusPill
+                      type={c.status === "active" ? "completed" : "neutral"}
+                    >
+                      {c.status === "active" ? "Ενεργός" : c.status}
+                    </StatusPill>
+                  </div>
+                  <div className="text-xs leading-[1.4] text-text-2">
+                    Συνδέθηκε στις {joined}
+                  </div>
+                </div>
+                <span className="font-mono text-[11px] font-semibold text-text-3">
+                  —
+                </span>
+              </div>
+            );
+          })}
+        </div>
+      </Panel>
+    );
+  }
+
+  // Empty state: κανένας πελάτης ακόμα
   const items: {
     avatar: string;
     name: string;

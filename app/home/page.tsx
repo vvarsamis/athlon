@@ -35,6 +35,18 @@ export default async function HomePage() {
 
   const name = vocative(firstName(user?.user_metadata?.full_name, user?.email));
 
+  // Ο προπονητής του (αν έχει) — από trainer_clients + profiles
+  let trainerName: string | null = null;
+  if (user) {
+    const { data: link } = await supabase
+      .from("trainer_clients")
+      .select("trainer:profiles!trainer_clients_trainer_id_fkey(full_name)")
+      .eq("client_id", user.id)
+      .maybeSingle();
+    const linkAny = link as { trainer: { full_name: string | null } | null } | null;
+    trainerName = linkAny?.trainer?.full_name ?? null;
+  }
+
   return (
     <PhoneFrame>
       <div className="relative z-[1] pb-[120px]">
@@ -43,7 +55,7 @@ export default async function HomePage() {
         <StreakCard />
 
         <SectionTitle title="ΣΗΜΕΡΑ · ΔΕΥΤΕΡΑ 25 ΜΑΪ" />
-        <TodayCard />
+        <TodayCard trainerName={trainerName} />
 
         <StatsGrid />
 
@@ -189,7 +201,7 @@ function SectionTitle({
   );
 }
 
-function TodayCard() {
+function TodayCard({ trainerName }: { trainerName: string | null }) {
   return (
     <div className="relative mx-5 overflow-hidden rounded-3xl border border-[#2E2E2E] bg-gradient-to-br from-[#1F1F1F] to-[#111] p-[22px]">
       <div
@@ -208,7 +220,7 @@ function TodayCard() {
         <br />& τρικέφαλα
       </h3>
       <div className="relative mb-[18px] text-[13px] text-text-2">
-        από Θάνο Αλιμπάκη
+        {trainerName ? `από ${trainerName}` : "Δείγμα προγράμματος"}
       </div>
       <div className="relative mb-5 flex gap-[18px]">
         <MetaItem

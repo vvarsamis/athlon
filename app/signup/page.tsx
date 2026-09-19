@@ -14,6 +14,7 @@ export default function SignupPage() {
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [inviteCode, setInviteCode] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [info, setInfo] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
@@ -24,6 +25,29 @@ export default function SignupPage() {
     setInfo(null);
     setLoading(true);
     const supabase = createClient();
+    const trimmedCode = inviteCode.trim().toUpperCase();
+
+    // Αν είναι client με invite code, επαληθεύουμε πρώτα τον trainer
+    let trainerId: string | null = null;
+    if (role === "client" && trimmedCode) {
+      const { data: rows, error: rpcErr } = await supabase.rpc(
+        "find_trainer_by_invite_code",
+        { code: trimmedCode },
+      );
+      if (rpcErr) {
+        setLoading(false);
+        setError("Σφάλμα στην επαλήθευση κωδικού. Δοκίμασε ξανά.");
+        return;
+      }
+      const found = Array.isArray(rows) && rows.length > 0 ? rows[0] : null;
+      if (!found) {
+        setLoading(false);
+        setError("Ο κωδικός δεν αντιστοιχεί σε προπονητή. Έλεγξε την ορθογραφία.");
+        return;
+      }
+      trainerId = found.trainer_id as string;
+    }
+
     const { data, error } = await supabase.auth.signUp({
       email: email.trim(),
       password,
@@ -31,11 +55,25 @@ export default function SignupPage() {
         data: { full_name: name.trim(), user_type: role },
       },
     });
-    setLoading(false);
     if (error) {
+      setLoading(false);
       setError(translateError(error.message));
       return;
     }
+
+    // Αν είναι client με invite, συνδέουμε με τον trainer
+    if (data.user && trainerId) {
+      const { error: linkErr } = await supabase.from("trainer_clients").insert({
+        client_id: data.user.id,
+        trainer_id: trainerId,
+      });
+      if (linkErr) {
+        console.warn("[signup] failed to link trainer:", linkErr.message);
+        // Δεν αποτυγχάνουμε το signup — ο user μπορεί να συνδεθεί αργότερα
+      }
+    }
+
+    setLoading(false);
     if (data.session) {
       router.push(role === "trainer" ? "/trainer" : "/home");
       router.refresh();
@@ -89,6 +127,16 @@ export default function SignupPage() {
             autoComplete="new-password"
             required
           />
+
+          {role === "client" && (
+            <FloatingInput
+              label="ΚΩΔΙΚΟΣ ΠΡΟΠΟΝΗΤΗ (ΠΡΟΑΙΡΕΤΙΚΟ)"
+              type="text"
+              value={inviteCode}
+              onChange={(v) => setInviteCode(v.toUpperCase())}
+              autoComplete="off"
+            />
+          )}
 
           {error && (
             <div className="rounded-[10px] border border-danger/30 bg-danger/[0.08] px-3 py-2.5 text-[13px] text-danger">
