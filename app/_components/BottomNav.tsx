@@ -49,7 +49,7 @@ const items: Item[] = [
   },
   {
     key: "nutrition",
-    href: "/nutrition",
+    href: "/me/nutrition",
     label: "Διατροφή",
     icon: (
       <svg
