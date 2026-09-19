@@ -122,6 +122,7 @@ function Sidebar({
       <NavSection title="Επισκόπηση">
         <NavItem
           active
+          href="/trainer"
           icon={
             <svg
               viewBox="0 0 24 24"
@@ -141,6 +142,7 @@ function Sidebar({
           Dashboard
         </NavItem>
         <NavItem
+          href="/trainer/clients"
           badge={clientCount > 0 ? String(clientCount) : undefined}
           icon={
             <svg
@@ -161,6 +163,7 @@ function Sidebar({
           Πελάτες
         </NavItem>
         <NavItem
+          href="/trainer/programs"
           icon={
             <svg
               viewBox="0 0 24 24"
@@ -180,6 +183,7 @@ function Sidebar({
           Προγράμματα
         </NavItem>
         <NavItem
+          href="/nutrition"
           icon={
             <svg
               viewBox="0 0 24 24"
@@ -199,6 +203,7 @@ function Sidebar({
           Διατροφή
         </NavItem>
         <NavItem
+          soon
           icon={
             <svg
               viewBox="0 0 24 24"
@@ -221,6 +226,7 @@ function Sidebar({
 
       <NavSection title="Στατιστικά">
         <NavItem
+          soon
           icon={
             <svg
               viewBox="0 0 24 24"
@@ -238,6 +244,7 @@ function Sidebar({
           Αναφορές
         </NavItem>
         <NavItem
+          soon
           icon={
             <svg
               viewBox="0 0 24 24"
@@ -300,25 +307,36 @@ function NavItem({
   active,
   alert,
   badge,
+  href,
+  soon,
 }: {
   icon: React.ReactNode;
   children: React.ReactNode;
   active?: boolean;
   alert?: boolean;
   badge?: string;
+  href?: string;
+  soon?: boolean;
 }) {
   const baseClass =
-    "flex cursor-pointer items-center gap-3 rounded-[10px] px-3 py-2.5 text-sm font-semibold transition-colors";
+    "flex items-center gap-3 rounded-[10px] px-3 py-2.5 text-sm font-semibold transition-colors";
   const stateClass = active
     ? "bg-accent/[0.12] text-accent [&>svg]:drop-shadow-[0_0_6px_rgba(197,255,0,0.5)]"
-    : "text-text-2 hover:bg-surface-1 hover:text-text-1";
-  return (
-    <a className={`${baseClass} ${stateClass}`}>
+    : soon
+    ? "text-text-3 cursor-not-allowed"
+    : "text-text-2 hover:bg-surface-1 hover:text-text-1 cursor-pointer";
+
+  const content = (
+    <>
       <span className="h-[18px] w-[18px] flex-shrink-0">{icon}</span>
-      {children}
-      {badge && (
+      <span className="flex-1">{children}</span>
+      {soon ? (
+        <span className="rounded-full bg-surface-3 px-[7px] py-0.5 text-[9px] font-bold uppercase tracking-[0.06em] text-text-3">
+          σύντομα
+        </span>
+      ) : badge ? (
         <span
-          className={`ml-auto rounded-full px-[7px] py-0.5 font-mono text-[10px] font-extrabold ${
+          className={`rounded-full px-[7px] py-0.5 font-mono text-[10px] font-extrabold ${
             active
               ? "bg-accent text-[#0A0A0A]"
               : alert
@@ -328,9 +346,18 @@ function NavItem({
         >
           {badge}
         </span>
-      )}
-    </a>
+      ) : null}
+    </>
   );
+
+  if (href && !soon) {
+    return (
+      <Link href={href} className={`${baseClass} ${stateClass}`}>
+        {content}
+      </Link>
+    );
+  }
+  return <div className={`${baseClass} ${stateClass}`}>{content}</div>;
 }
 
 function TopBar({
