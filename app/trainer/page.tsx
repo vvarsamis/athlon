@@ -3,6 +3,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { LogoutButton } from "../_components/LogoutButton";
 import { InviteCodeCard } from "../_components/InviteCodeCard";
+import { InviteClientButton } from "../_components/InviteClientButton";
 import { createClient } from "../../lib/supabase/server";
 
 function firstName(fullName: string | null | undefined, email: string | undefined) {
@@ -63,7 +64,11 @@ export default async function TrainerDashboardPage() {
         clientCount={activeClients}
       />
       <main className="min-w-0 px-4 pb-12 pt-6 md:px-8">
-        <TopBar greeting={firstWord} clientCount={activeClients} />
+        <TopBar
+          greeting={firstWord}
+          clientCount={activeClients}
+          inviteCode={inviteCode}
+        />
         <InviteCodeCard code={inviteCode} />
         <StatsRow clientCount={activeClients} />
         <div className="grid grid-cols-1 gap-5 lg:grid-cols-[1.6fr_1fr]">
@@ -71,7 +76,7 @@ export default async function TrainerDashboardPage() {
           <div className="flex flex-col gap-5">
             <NeedsAttentionPanel />
             <WeekChartPanel />
-            <QuickActionsPanel />
+            <QuickActionsPanel inviteCode={inviteCode} />
           </div>
         </div>
       </main>
@@ -363,9 +368,11 @@ function NavItem({
 function TopBar({
   greeting,
   clientCount,
+  inviteCode,
 }: {
   greeting: string;
   clientCount: number;
+  inviteCode: string;
 }) {
   return (
     <div className="mb-7 flex flex-wrap items-center justify-between gap-4">
@@ -399,13 +406,10 @@ function TopBar({
             className="w-60 rounded-xl border border-border bg-surface-1 py-2.5 pl-9 pr-3.5 text-[13px] text-text-1 placeholder:text-text-3 focus:border-accent focus:outline-none"
           />
         </div>
-        <button
-          type="button"
-          className="flex items-center gap-[7px] rounded-xl border border-border bg-surface-1 px-4 py-2.5 text-[13px] font-bold text-text-1 hover:border-[#303030]"
-        >
+        <InviteClientButton code={inviteCode}>
           <PlusIcon />
           Νέος πελάτης
-        </button>
+        </InviteClientButton>
         <Link
           href="/workout-builder"
           className="flex items-center gap-[7px] rounded-xl bg-accent px-4 py-2.5 text-[13px] font-bold text-[#0A0A0A] shadow-[0_0_24px_rgba(197,255,0,0.3)] hover:shadow-[0_0_32px_rgba(197,255,0,0.5)]"
@@ -844,62 +848,28 @@ function StatusPill({
 }
 
 function NeedsAttentionPanel() {
-  const items: { avatar: string; name: string; reason: string; warn?: boolean; cta: string }[] = [
-    {
-      avatar: "https://randomuser.me/api/portraits/men/29.jpg",
-      name: "Γιάννης Σ.",
-      reason: "3 παραλείψεις σε 2 εβδ.",
-      cta: "Μήνυμα",
-    },
-    {
-      avatar: "https://randomuser.me/api/portraits/women/51.jpg",
-      name: "Σοφία Λ.",
-      reason: "Συνδρομή λήγει σε 5 μέρες",
-      warn: true,
-      cta: "Ανανέωση",
-    },
-    {
-      avatar: "https://randomuser.me/api/portraits/men/64.jpg",
-      name: "Κώστας Μ.",
-      reason: "Δεν συνδέθηκε 8 μέρες",
-      cta: "Μήνυμα",
-    },
-  ];
   return (
-    <Panel title="Χρειάζονται προσοχή" subtitle="3 πελάτες με ζητήματα">
-      <div className="py-2">
-        {items.map((it) => (
-          <div
-            key={it.name}
-            className="flex cursor-pointer items-center gap-3 px-[22px] py-3.5 transition-colors hover:bg-surface-2"
+    <Panel title="Χρειάζονται προσοχή" subtitle="Θα εμφανιστούν εδώ πελάτες με ζητήματα">
+      <div className="px-[22px] py-6 text-center">
+        <div className="mx-auto mb-3 flex h-10 w-10 items-center justify-center rounded-xl bg-success/[0.12] text-success">
+          <svg
+            width="20"
+            height="20"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
           >
-            <Image
-              src={it.avatar}
-              alt=""
-              width={36}
-              height={36}
-              className="h-9 w-9 rounded-full object-cover"
-            />
-            <div className="min-w-0 flex-1">
-              <div className="text-[13px] font-bold tracking-[-0.01em]">
-                {it.name}
-              </div>
-              <div
-                className={`mt-0.5 text-[11px] font-semibold ${
-                  it.warn ? "text-warning" : "text-danger"
-                }`}
-              >
-                {it.reason}
-              </div>
-            </div>
-            <button
-              type="button"
-              className="rounded-lg border border-[#303030] bg-surface-2 px-2.5 py-1.5 text-[11px] font-bold text-text-1 hover:border-accent hover:text-accent"
-            >
-              {it.cta}
-            </button>
-          </div>
-        ))}
+            <polyline points="20 6 9 17 4 12" />
+          </svg>
+        </div>
+        <div className="text-[13px] font-bold">Όλα υπό έλεγχο</div>
+        <div className="mt-1 text-[11px] leading-[1.5] text-text-3">
+          Θα δείς εδώ πελάτες που παραλείπουν προπονήσεις,
+          <br />ή που η συνδρομή τους λήγει σύντομα.
+        </div>
       </div>
     </Panel>
   );
@@ -956,11 +926,22 @@ function WeekChartPanel() {
   );
 }
 
-function QuickActionsPanel() {
-  const actions = [
+function QuickActionsPanel({ inviteCode }: { inviteCode: string }) {
+  type Action = {
+    key: string;
+    title: string;
+    desc: string;
+    icon: React.ReactNode;
+    href?: string;
+    invite?: boolean;
+    soon?: boolean;
+  };
+  const actions: Action[] = [
     {
+      key: "new-client",
+      invite: true,
       title: "Νέος πελάτης",
-      desc: "Προσθήκη + αυτόματο email πρόσκλησης",
+      desc: "Πρόσκληση με τον κωδικό σου",
       icon: (
         <svg
           width="16"
@@ -980,8 +961,10 @@ function QuickActionsPanel() {
       ),
     },
     {
+      key: "new-program",
+      href: "/workout-builder",
       title: "Νέο πρόγραμμα",
-      desc: "Φτιάξε από μηδέν ή από template",
+      desc: "Φτιάξε από μηδέν",
       icon: (
         <svg
           width="16"
@@ -1001,6 +984,8 @@ function QuickActionsPanel() {
       ),
     },
     {
+      key: "new-nutrition",
+      href: "/nutrition",
       title: "Πλάνο διατροφής",
       desc: "Δομημένο πλάνο με γεύματα & μακρο",
       icon: (
@@ -1020,6 +1005,8 @@ function QuickActionsPanel() {
       ),
     },
     {
+      key: "broadcast",
+      soon: true,
       title: "Ομαδικό μήνυμα",
       desc: "Push notification σε όλους τους πελάτες",
       icon: (
@@ -1041,23 +1028,60 @@ function QuickActionsPanel() {
   return (
     <Panel title="Γρήγορες ενέργειες">
       <div className="grid grid-cols-2 gap-2.5 px-[22px] py-[18px]">
-        {actions.map((a) => (
-          <button
-            key={a.title}
-            type="button"
-            className="flex cursor-pointer flex-col gap-2 rounded-xl border border-border bg-surface-2 p-4 text-left text-text-1 transition-all hover:border-accent hover:bg-surface-1"
-          >
-            <div className="flex h-8 w-8 items-center justify-center rounded-[9px] bg-accent/[0.12] text-accent">
-              {a.icon}
-            </div>
-            <div className="text-[13px] font-bold tracking-[-0.01em]">
-              {a.title}
-            </div>
-            <div className="text-[11px] leading-[1.4] text-text-3">
-              {a.desc}
-            </div>
-          </button>
-        ))}
+        {actions.map((a) => {
+          const inner = (
+            <>
+              <div className="flex h-8 w-8 items-center justify-center rounded-[9px] bg-accent/[0.12] text-accent">
+                {a.icon}
+              </div>
+              <div className="flex items-center gap-1.5 text-[13px] font-bold tracking-[-0.01em]">
+                {a.title}
+                {a.soon && (
+                  <span className="rounded-full bg-surface-3 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-[0.06em] text-text-3">
+                    σύντομα
+                  </span>
+                )}
+              </div>
+              <div className="text-[11px] leading-[1.4] text-text-3">
+                {a.desc}
+              </div>
+            </>
+          );
+          const cardBase = "flex flex-col gap-2 rounded-xl border p-4 text-left transition-all";
+          if (a.soon) {
+            return (
+              <div
+                key={a.key}
+                className={`${cardBase} border-border bg-surface-2 opacity-60 cursor-not-allowed text-text-1`}
+              >
+                {inner}
+              </div>
+            );
+          }
+          if (a.href) {
+            return (
+              <Link
+                key={a.key}
+                href={a.href}
+                className={`${cardBase} border-border bg-surface-2 text-text-1 hover:border-accent hover:bg-surface-1`}
+              >
+                {inner}
+              </Link>
+            );
+          }
+          if (a.invite) {
+            return (
+              <InviteClientButton
+                key={a.key}
+                code={inviteCode}
+                variant="quick"
+              >
+                {inner}
+              </InviteClientButton>
+            );
+          }
+          return null;
+        })}
       </div>
     </Panel>
   );
