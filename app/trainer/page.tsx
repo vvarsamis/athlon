@@ -312,7 +312,7 @@ function Sidebar({
 
       <NavSection title="Στατιστικά">
         <NavItem
-          soon
+          href="/trainer/reports"
           icon={
             <svg
               viewBox="0 0 24 24"
