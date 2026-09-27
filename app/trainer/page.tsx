@@ -289,7 +289,7 @@ function Sidebar({
           Διατροφή
         </NavItem>
         <NavItem
-          soon
+          href="/trainer/calendar"
           icon={
             <svg
               viewBox="0 0 24 24"
