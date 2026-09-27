@@ -269,7 +269,7 @@ function Sidebar({
           Προγράμματα
         </NavItem>
         <NavItem
-          href="/nutrition"
+          href="/trainer/nutrition-plans"
           icon={
             <svg
               viewBox="0 0 24 24"
@@ -491,6 +491,13 @@ function TopBar({
           <PlusIcon />
           Νέος πελάτης
         </InviteClientButton>
+        <Link
+          href="/nutrition"
+          className="flex items-center gap-[7px] rounded-xl border border-border bg-surface-1 px-4 py-2.5 text-[13px] font-bold text-text-1 hover:border-[#303030]"
+        >
+          <PlusIcon />
+          Νέο πλάνο
+        </Link>
         <Link
           href="/workout-builder"
           className="flex items-center gap-[7px] rounded-xl bg-accent px-4 py-2.5 text-[13px] font-bold text-[#0A0A0A] shadow-[0_0_24px_rgba(197,255,0,0.3)] hover:shadow-[0_0_32px_rgba(197,255,0,0.5)]"
