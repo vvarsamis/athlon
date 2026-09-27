@@ -31,8 +31,10 @@
 | Client | Κάνει προπόνηση, ολοκληρώνει, καταγράφεται | `/workout` |
 | Client | Δει τα σημερινά γεύματα, τσεκάρει "έφαγα" | `/me/nutrition` |
 | Client | Καταγράψει νέο βάρος | `/home` → tap weight card |
+| Client | Δει progress: βάρος, streak, sessions, φωτογραφίες προόδου | `/progress` |
+| Client | Ανεβάσει νέα φωτογραφία προόδου (μέσω camera στο κινητό) | `/progress` → "Νέα φωτογραφία προόδου" |
 | Trainer | Δει dashboard με real activity, week chart, invite code | `/trainer` |
-| Trainer | Δει λίστα πελατών με assigned program + latest weight | `/trainer/clients` |
+| Trainer | Δει λίστα πελατών με assigned program + latest weight + τελευταία φωτο | `/trainer/clients` |
 | Trainer | Δει τα προγράμματά του | `/trainer/programs` |
 | Trainer | Φτιάξει και αναθέσει πρόγραμμα προπόνησης | `/workout-builder` |
 | Trainer | Φτιάξει και αναθέσει διατροφικό πλάνο | `/nutrition` |
@@ -40,7 +42,7 @@
 
 ## Data model
 
-7 πίνακες, όλοι με RLS enabled:
+8 πίνακες + 1 storage bucket, όλα με RLS enabled:
 
 ```
 profiles           id ↔ auth.users, user_type (client|trainer), full_name, invite_code
@@ -96,7 +98,7 @@ git push
 
 ```
 app/
-├── _components/     — reusable client components (AthlonLogo, BottomNav, PhoneFrame, LogoutButton, InviteClientButton, InviteCodeCard, WeightCard)
+├── _components/     — reusable client components (AthlonLogo, BottomNav, PhoneFrame, LogoutButton, InviteClientButton, InviteCodeCard, WeightCard, PhotoUploader)
 ├── layout.tsx       — root layout
 ├── globals.css      — Tailwind v4 + design tokens
 ├── page.tsx         — dev index με links σε όλα τα routes
@@ -104,7 +106,8 @@ app/
 ├── home/            — client home (mobile-first)
 ├── workout/         — client workout page (server + WorkoutView client component)
 ├── me/nutrition/    — client meal view (server + NutritionView client component)
-├── schedule/, progress/ — client placeholder pages
+├── progress/        — client progress: stats + photo uploader + photo grid (signed URLs)
+├── schedule/        — client placeholder page
 ├── trainer/
 │   ├── page.tsx         — dashboard
 │   ├── onboarding/      — studio setup (public)
@@ -141,8 +144,8 @@ mockups/             — τα αρχικά 8 HTML mockups (reference μόνο)
 - ✅ Phase 2: Supabase auth
 - ✅ Phase 3: Full data model (profiles, trainer_clients, programs, nutrition)
 - ✅ Phase A: Workout sessions με real stats (streak, week count, activity feed)
-- ✅ Phase B (partial): Weight tracking (done). Progress photos (SQL γραμμένο, code pending)
-- ⏳ Phase Γ: Μηνύματα (basic 1-on-1 chat)
+- ✅ Phase B: Weight tracking + progress photos (client uploads, trainer sees latest per πελάτη)
+- ⏳ Phase Γ: Μηνύματα (basic 1-on-1 chat trainer↔client)
 - ⏳ Phase Δ: Ημερολόγιο calendar view
 - ⏳ Phase Ε: Αναφορές analytics
 
