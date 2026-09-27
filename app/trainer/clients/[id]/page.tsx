@@ -3,6 +3,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { createClient } from "../../../../lib/supabase/server";
 import { getProfile } from "../../../../lib/profile";
+import { MessageThread, type Message } from "../../../_components/MessageThread";
 
 type ClientAssignment = {
   status: string;
@@ -91,6 +92,17 @@ export default async function ClientDetailPage({
     .limit(10);
   const sessions = (sessionsData as SessionRow[] | null) ?? [];
 
+  // Messages thread (τελευταία 100)
+  const { data: messagesData } = await supabase
+    .from("messages")
+    .select("id, sender_id, recipient_id, body, read_at, created_at")
+    .or(
+      `and(sender_id.eq.${user.id},recipient_id.eq.${clientId}),and(sender_id.eq.${clientId},recipient_id.eq.${user.id})`,
+    )
+    .order("created_at", { ascending: true })
+    .limit(100);
+  const messages = (messagesData as Message[] | null) ?? [];
+
   // Computed stats
   const latestWeight = weighIns.length > 0 ? weighIns[weighIns.length - 1] : null;
   const firstWeight = weighIns.length > 0 ? weighIns[0] : null;
@@ -155,8 +167,14 @@ export default async function ClientDetailPage({
           />
         </div>
 
-        <div className="mb-5 grid grid-cols-1 gap-5">
+        <div className="mb-5 grid grid-cols-1 gap-5 lg:grid-cols-[1.4fr_1fr]">
           <ProgressPhotosPanel photos={photos} photoUrls={photoUrls} />
+          <MessagesPanel
+            currentUserId={user.id}
+            otherUserId={clientId}
+            otherUserName={clientName}
+            initialMessages={messages}
+          />
         </div>
 
         <div className="grid grid-cols-1 gap-5">
@@ -187,17 +205,15 @@ function TopBar({ clientName }: { clientName: string }) {
           {clientName}
         </h1>
       </div>
-      <button
-        type="button"
-        disabled
-        title="Σύντομα — Φάση Γ"
-        className="hidden items-center gap-2 rounded-[10px] border border-border bg-surface-1 px-3.5 py-2.5 text-[13px] font-bold text-text-3 opacity-60 md:flex"
+      <a
+        href="#messages"
+        className="hidden items-center gap-2 rounded-[10px] bg-accent px-3.5 py-2.5 text-[13px] font-bold text-[#0A0A0A] shadow-[0_0_20px_rgba(197,255,0,0.3)] hover:shadow-[0_0_32px_rgba(197,255,0,0.5)] md:flex"
       >
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
           <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
         </svg>
-        Μήνυμα · σύντομα
-      </button>
+        Μήνυμα
+      </a>
     </div>
   );
 }
@@ -759,6 +775,49 @@ function ProgressPhotosPanel({
         })}
       </div>
     </Panel>
+  );
+}
+
+function MessagesPanel({
+  currentUserId,
+  otherUserId,
+  otherUserName,
+  initialMessages,
+}: {
+  currentUserId: string;
+  otherUserId: string;
+  otherUserName: string;
+  initialMessages: Message[];
+}) {
+  const unread = initialMessages.filter(
+    (m) => m.recipient_id === currentUserId && m.read_at == null,
+  ).length;
+  return (
+    <div id="messages" className="flex h-[520px] flex-col overflow-hidden rounded-[18px] border border-border bg-surface-1 scroll-mt-20">
+      <div className="flex items-center justify-between border-b border-border px-[22px] py-[18px]">
+        <div>
+          <h2 className="text-sm font-extrabold tracking-[-0.01em]">
+            Μηνύματα
+          </h2>
+          <div className="mt-0.5 text-[11px] font-medium text-text-3">
+            Ιδιωτική συζήτηση με τον πελάτη
+          </div>
+        </div>
+        {unread > 0 && (
+          <span className="rounded-full bg-accent px-2 py-0.5 text-[10px] font-extrabold text-[#0A0A0A]">
+            {unread} νέα
+          </span>
+        )}
+      </div>
+      <div className="flex-1 overflow-hidden">
+        <MessageThread
+          currentUserId={currentUserId}
+          otherUserId={otherUserId}
+          otherUserName={otherUserName}
+          initialMessages={initialMessages}
+        />
+      </div>
+    </div>
   );
 }
 

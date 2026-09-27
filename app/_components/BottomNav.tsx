@@ -82,6 +82,23 @@ const items: Item[] = [
       </svg>
     ),
   },
+  {
+    key: "messages",
+    href: "/me/messages",
+    label: "Μηνύματα",
+    icon: (
+      <svg
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      >
+        <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+      </svg>
+    ),
+  },
 ];
 
 type Props = {
@@ -90,7 +107,7 @@ type Props = {
 
 export function BottomNav({ active }: Props) {
   return (
-    <nav className="absolute inset-x-0 bottom-0 z-20 flex justify-around border-t border-border bg-[rgba(10,10,10,0.92)] px-5 pb-[22px] pt-3 backdrop-blur-2xl">
+    <nav className="absolute inset-x-0 bottom-0 z-20 flex justify-around border-t border-border bg-[rgba(10,10,10,0.92)] px-2 pb-[22px] pt-3 backdrop-blur-2xl">
       {items.map((item) => {
         const isActive = item.key === active;
         return (

@@ -330,7 +330,7 @@ function Sidebar({
           Αναφορές
         </NavItem>
         <NavItem
-          soon
+          href="/trainer/messages"
           icon={
             <svg
               viewBox="0 0 24 24"
