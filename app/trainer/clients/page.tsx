@@ -34,6 +34,27 @@ export default async function TrainerClientsPage() {
 
   const clients = (data as ClientRow[] | null) ?? [];
 
+  // Πάρε το τελευταίο βάρος για κάθε πελάτη (batch query)
+  const clientIds = clients.map((c) => c.client_id);
+  const latestWeights = new Map<string, { kg: number; at: string }>();
+  if (clientIds.length > 0) {
+    const { data: allWeighIns } = await supabase
+      .from("weigh_ins")
+      .select("client_id, weight_kg, recorded_at")
+      .in("client_id", clientIds)
+      .order("recorded_at", { ascending: false });
+    for (const w of (allWeighIns as
+      | { client_id: string; weight_kg: number; recorded_at: string }[]
+      | null) ?? []) {
+      if (!latestWeights.has(w.client_id)) {
+        latestWeights.set(w.client_id, {
+          kg: Number(w.weight_kg),
+          at: w.recorded_at,
+        });
+      }
+    }
+  }
+
   return (
     <div className="min-h-screen bg-bg">
       <div className="border-b border-border bg-[#080808]">
@@ -73,7 +94,11 @@ export default async function TrainerClientsPage() {
         ) : (
           <div className="grid grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-3">
             {clients.map((c) => (
-              <ClientCard key={c.client_id} client={c} />
+              <ClientCard
+                key={c.client_id}
+                client={c}
+                latestWeight={latestWeights.get(c.client_id) ?? null}
+              />
             ))}
           </div>
         )}
@@ -119,7 +144,13 @@ function EmptyState() {
   );
 }
 
-function ClientCard({ client }: { client: ClientRow }) {
+function ClientCard({
+  client,
+  latestWeight,
+}: {
+  client: ClientRow;
+  latestWeight: { kg: number; at: string } | null;
+}) {
   const name = client.profile?.full_name ?? "Χωρίς όνομα";
   const joined = new Date(client.joined_at).toLocaleDateString("el-GR", {
     day: "numeric",
@@ -154,22 +185,40 @@ function ClientCard({ client }: { client: ClientRow }) {
         </span>
       </div>
 
-      <div className="rounded-xl border border-border bg-surface-2 p-3">
-        <div className="text-[10px] font-bold uppercase tracking-[0.1em] text-text-3">
-          Πρόγραμμα
-        </div>
-        {client.program ? (
-          <div className="mt-1 text-[13px] font-bold">
-            {client.program.title}
-            <div className="mt-0.5 text-[11px] font-normal text-text-3">
-              {client.program.name}
+      <div className="grid grid-cols-2 gap-2">
+        <div className="rounded-xl border border-border bg-surface-2 p-3">
+          <div className="text-[10px] font-bold uppercase tracking-[0.1em] text-text-3">
+            Πρόγραμμα
+          </div>
+          {client.program ? (
+            <div className="mt-1 text-[12px] font-bold">
+              {client.program.title.slice(0, 24)}
+              {client.program.title.length > 24 ? "…" : ""}
             </div>
+          ) : (
+            <div className="mt-1 text-[11px] text-text-3">Δεν έχει</div>
+          )}
+        </div>
+        <div className="rounded-xl border border-border bg-surface-2 p-3">
+          <div className="text-[10px] font-bold uppercase tracking-[0.1em] text-text-3">
+            Βάρος
           </div>
-        ) : (
-          <div className="mt-1 text-[12px] text-text-3">
-            Δεν έχει ανατεθεί ακόμα
-          </div>
-        )}
+          {latestWeight ? (
+            <div className="mt-1">
+              <div className="font-mono text-[13px] font-extrabold">
+                {latestWeight.kg} kg
+              </div>
+              <div className="mt-0.5 text-[10px] text-text-3">
+                {new Date(latestWeight.at).toLocaleDateString("el-GR", {
+                  day: "numeric",
+                  month: "short",
+                })}
+              </div>
+            </div>
+          ) : (
+            <div className="mt-1 text-[11px] text-text-3">—</div>
+          )}
+        </div>
       </div>
     </div>
   );

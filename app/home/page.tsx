@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 import { PhoneFrame } from "../_components/PhoneFrame";
 import { BottomNav } from "../_components/BottomNav";
 import { LogoutButton } from "../_components/LogoutButton";
+import { WeightCard } from "../_components/WeightCard";
 import { createClient } from "../../lib/supabase/server";
 import { getProfile } from "../../lib/profile";
 
@@ -131,6 +132,32 @@ export default async function HomePage() {
     sessionsThisWeek = weekCount ?? 0;
   }
 
+  // Latest + ~30-day-old βάρος (για delta)
+  let latestKg: number | null = null;
+  let monthAgoKg: number | null = null;
+  if (user) {
+    const { data: latest } = await supabase
+      .from("weigh_ins")
+      .select("weight_kg")
+      .eq("client_id", user.id)
+      .order("recorded_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    latestKg = latest?.weight_kg != null ? Number(latest.weight_kg) : null;
+
+    const monthAgo = new Date();
+    monthAgo.setDate(monthAgo.getDate() - 30);
+    const { data: older } = await supabase
+      .from("weigh_ins")
+      .select("weight_kg")
+      .eq("client_id", user.id)
+      .lte("recorded_at", monthAgo.toISOString())
+      .order("recorded_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    monthAgoKg = older?.weight_kg != null ? Number(older.weight_kg) : null;
+  }
+
   return (
     <PhoneFrame>
       <div className="relative z-[1] pb-[120px]">
@@ -141,7 +168,12 @@ export default async function HomePage() {
         <SectionTitle title="ΣΗΜΕΡΑ" />
         <TodayCard trainerName={trainerName} program={assignedProgram} />
 
-        <StatsGrid completedThisWeek={sessionsThisWeek} weekTarget={weekTarget} />
+        <StatsGrid
+          completedThisWeek={sessionsThisWeek}
+          weekTarget={weekTarget}
+          latestKg={latestKg}
+          monthAgoKg={monthAgoKg}
+        />
 
         <SectionTitle title="ΕΠΟΜΕΝΑ" actionLabel="Ημερολόγιο →" />
         <TomorrowCard />
@@ -438,9 +470,13 @@ function MetaItem({
 function StatsGrid({
   completedThisWeek,
   weekTarget,
+  latestKg,
+  monthAgoKg,
 }: {
   completedThisWeek: number;
   weekTarget: number;
+  latestKg: number | null;
+  monthAgoKg: number | null;
 }) {
   const pct = Math.min(100, Math.round((completedThisWeek / weekTarget) * 100));
   return (
@@ -464,19 +500,7 @@ function StatsGrid({
           />
         </div>
       </div>
-      <div className="rounded-2xl border border-dashed border-border bg-surface-1 p-4">
-        <div className="mb-2.5 text-[10px] font-bold uppercase tracking-[0.12em] text-text-3">
-          Σωματικό βάρος
-        </div>
-        <div className="flex items-baseline gap-1">
-          <div className="font-mono text-[16px] font-bold text-text-3">
-            Σύντομα
-          </div>
-        </div>
-        <div className="mt-1.5 flex items-center gap-1 text-[11px] font-medium text-text-3">
-          Θα μπορείς να καταγράφεις μετρήσεις
-        </div>
-      </div>
+      <WeightCard latestKg={latestKg} monthAgoKg={monthAgoKg} />
     </div>
   );
 }
