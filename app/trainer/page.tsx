@@ -784,9 +784,10 @@ function ActivityPanel({
                   month: "short",
                 });
             return (
-              <div
+              <Link
                 key={`${it.client_id}-${i}`}
-                className="flex cursor-pointer items-center gap-3.5 px-[22px] py-3.5 transition-colors hover:bg-surface-2"
+                href={`/trainer/clients/${it.client_id}`}
+                className="flex items-center gap-3.5 px-[22px] py-3.5 transition-colors hover:bg-surface-2"
               >
                 <div className="flex h-[38px] w-[38px] flex-shrink-0 items-center justify-center rounded-full bg-surface-3 text-[15px] font-extrabold text-text-1">
                   {it.client_name.charAt(0).toUpperCase()}
@@ -808,7 +809,7 @@ function ActivityPanel({
                 <span className="font-mono text-[11px] font-semibold text-text-3">
                   {timeLabel}
                 </span>
-              </div>
+              </Link>
             );
           })}
         </div>
@@ -832,9 +833,10 @@ function ActivityPanel({
               month: "short",
             });
             return (
-              <div
+              <Link
                 key={c.client_id}
-                className="flex cursor-pointer items-center gap-3.5 px-[22px] py-3.5 transition-colors hover:bg-surface-2"
+                href={`/trainer/clients/${c.client_id}`}
+                className="flex items-center gap-3.5 px-[22px] py-3.5 transition-colors hover:bg-surface-2"
               >
                 <div className="flex h-[38px] w-[38px] flex-shrink-0 items-center justify-center rounded-full bg-surface-3 text-[15px] font-extrabold text-text-1">
                   {name.charAt(0).toUpperCase()}
@@ -855,9 +857,9 @@ function ActivityPanel({
                   </div>
                 </div>
                 <span className="font-mono text-[11px] font-semibold text-text-3">
-                  —
+                  →
                 </span>
-              </div>
+              </Link>
             );
           })}
         </div>
