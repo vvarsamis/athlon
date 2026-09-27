@@ -111,11 +111,12 @@ export default async function TrainerProgramsPage() {
         ) : (
           <div className="grid grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-3">
             {rows.map((p) => (
-              <ProgramCard
-                key={p.id}
-                program={p}
-                assignedTo={assignmentCounts.get(p.id) ?? 0}
-              />
+              <Link key={p.id} href={`/trainer/programs/${p.id}`} className="block transition-transform hover:-translate-y-0.5">
+                <ProgramCard
+                  program={p}
+                  assignedTo={assignmentCounts.get(p.id) ?? 0}
+                />
+              </Link>
             ))}
           </div>
         )}

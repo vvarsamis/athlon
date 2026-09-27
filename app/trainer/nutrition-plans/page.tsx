@@ -103,12 +103,13 @@ export default async function TrainerNutritionPlansPage() {
         ) : (
           <div className="grid grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-3">
             {rows.map((p) => (
-              <PlanCard
-                key={p.id}
-                plan={p}
-                mealCount={mealCounts.get(p.id) ?? 0}
-                assignedTo={assignmentCounts.get(p.id) ?? 0}
-              />
+              <Link key={p.id} href={`/trainer/nutrition-plans/${p.id}`} className="block transition-transform hover:-translate-y-0.5">
+                <PlanCard
+                  plan={p}
+                  mealCount={mealCounts.get(p.id) ?? 0}
+                  assignedTo={assignmentCounts.get(p.id) ?? 0}
+                />
+              </Link>
             ))}
           </div>
         )}

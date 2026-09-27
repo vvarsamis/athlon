@@ -416,8 +416,32 @@ function TopBar({
 }
 
 function Library({ onAdd }: { onAdd: (item: LibItem) => void }) {
-  const filters = ["Όλα", "Στήθος", "Πλάτη", "Ώμοι", "Πόδια", "Χέρια", "Κορμός"];
+  // Το tag για κάθε filter — "Όλα" σημαίνει χωρίς φίλτρο
+  const filters: { label: string; tag: string | null }[] = [
+    { label: "Όλα", tag: null },
+    { label: "Στήθος", tag: "Στήθος" },
+    { label: "Πλάτη", tag: "Πλάτη" },
+    { label: "Ώμοι", tag: "Ώμοι" },
+    { label: "Πόδια", tag: "Πόδια" },
+    { label: "Χέρια", tag: "Τρικ." }, // στο data τα χέρια είναι με Τρικ./Δικ.
+    { label: "Κορμός", tag: "Κορμός" },
+  ];
   const [activeFilter, setActiveFilter] = useState(0);
+  const [query, setQuery] = useState("");
+
+  const q = query.trim().toLowerCase();
+  const activeTag = filters[activeFilter].tag;
+  function matches(it: LibItem) {
+    if (activeTag && !it.tags.some((t) => t.toLowerCase().startsWith(activeTag.toLowerCase()))) {
+      return false;
+    }
+    if (q && !it.name.toLowerCase().includes(q)) return false;
+    return true;
+  }
+  const filteredFrequent = frequentItems.filter(matches);
+  const filteredChest = chestItems.filter(matches);
+  const totalMatches = filteredFrequent.length + filteredChest.length;
+
   return (
     <aside className="sticky top-16 hidden max-h-[calc(100vh-64px)] overflow-y-auto border-r border-border bg-[#0C0C0C] p-5 md:block">
       <div className="mb-4">
@@ -437,6 +461,8 @@ function Library({ onAdd }: { onAdd: (item: LibItem) => void }) {
           </svg>
           <input
             type="search"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
             placeholder="Αναζήτηση άσκησης..."
             className="w-full rounded-[10px] border border-border bg-surface-1 py-2.5 pl-9 pr-3 text-[13px] text-text-1 placeholder:text-text-3 focus:border-accent focus:outline-none"
           />
@@ -445,7 +471,7 @@ function Library({ onAdd }: { onAdd: (item: LibItem) => void }) {
           {filters.map((f, i) => (
             <button
               type="button"
-              key={f}
+              key={f.label}
               onClick={() => setActiveFilter(i)}
               className={`cursor-pointer rounded-full border px-2.5 py-1 text-[11px] font-bold transition-colors ${
                 i === activeFilter
@@ -453,14 +479,36 @@ function Library({ onAdd }: { onAdd: (item: LibItem) => void }) {
                   : "border-border bg-surface-1 text-text-2 hover:border-[#303030]"
               }`}
             >
-              {f}
+              {f.label}
             </button>
           ))}
         </div>
       </div>
 
-      <LibrarySection title="Συχνά Χρησιμοποιούμενα" count="12" items={frequentItems} onAdd={onAdd} />
-      <LibrarySection title="Στήθος (Όλα)" count="38" items={chestItems} onAdd={onAdd} />
+      {totalMatches === 0 ? (
+        <div className="rounded-xl border border-dashed border-border bg-surface-1 px-3 py-6 text-center text-[11px] text-text-3">
+          Δεν βρέθηκαν ασκήσεις με αυτό το φίλτρο.
+        </div>
+      ) : (
+        <>
+          {filteredFrequent.length > 0 && (
+            <LibrarySection
+              title="Συχνά Χρησιμοποιούμενα"
+              count={String(filteredFrequent.length)}
+              items={filteredFrequent}
+              onAdd={onAdd}
+            />
+          )}
+          {filteredChest.length > 0 && (
+            <LibrarySection
+              title="Ασκήσεις"
+              count={String(filteredChest.length)}
+              items={filteredChest}
+              onAdd={onAdd}
+            />
+          )}
+        </>
+      )}
     </aside>
   );
 }

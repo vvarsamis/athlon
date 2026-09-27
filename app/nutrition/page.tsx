@@ -7,6 +7,7 @@ import { useMemo, useState } from "react";
 import { createClient } from "../../lib/supabase/client";
 import { ClientAssignmentModal } from "../_components/ClientAssignmentModal";
 
+type FoodCategory = "protein" | "carb" | "fat" | "veg" | "fruit";
 type FoodItem = {
   emoji: string;
   name: string;
@@ -15,22 +16,23 @@ type FoodItem = {
   c: number;
   f: number;
   kcal: number;
+  category: FoodCategory;
 };
 
 const popularFoods: FoodItem[] = [
-  { emoji: "🍗", name: "Κοτόπουλο στήθος", per: "100g", p: 23, c: 0, f: 1.5, kcal: 110 },
-  { emoji: "🥚", name: "Αυγό (ολόκληρο)", per: "1 τεμ", p: 6, c: 0.6, f: 5, kcal: 78 },
-  { emoji: "🥛", name: "Ελληνικό γιαούρτι 2%", per: "100g", p: 10, c: 4, f: 2, kcal: 80 },
-  { emoji: "🌾", name: "Βρώμη", per: "100g", p: 13, c: 68, f: 7, kcal: 379 },
-  { emoji: "🍚", name: "Ρύζι basmati (μαγειρ.)", per: "100g", p: 2.7, c: 28, f: 0.4, kcal: 130 },
-  { emoji: "🍌", name: "Μπανάνα", per: "100g", p: 1.1, c: 23, f: 0.3, kcal: 89 },
+  { emoji: "🍗", name: "Κοτόπουλο στήθος", per: "100g", p: 23, c: 0, f: 1.5, kcal: 110, category: "protein" },
+  { emoji: "🥚", name: "Αυγό (ολόκληρο)", per: "1 τεμ", p: 6, c: 0.6, f: 5, kcal: 78, category: "protein" },
+  { emoji: "🥛", name: "Ελληνικό γιαούρτι 2%", per: "100g", p: 10, c: 4, f: 2, kcal: 80, category: "protein" },
+  { emoji: "🌾", name: "Βρώμη", per: "100g", p: 13, c: 68, f: 7, kcal: 379, category: "carb" },
+  { emoji: "🍚", name: "Ρύζι basmati (μαγειρ.)", per: "100g", p: 2.7, c: 28, f: 0.4, kcal: 130, category: "carb" },
+  { emoji: "🍌", name: "Μπανάνα", per: "100g", p: 1.1, c: 23, f: 0.3, kcal: 89, category: "fruit" },
 ];
 
 const greekFoods: FoodItem[] = [
-  { emoji: "🧀", name: "Φέτα", per: "100g", p: 14, c: 4, f: 21, kcal: 264 },
-  { emoji: "🫒", name: "Ελιές Καλαμών", per: "100g", p: 1, c: 6, f: 15, kcal: 154 },
-  { emoji: "🫙", name: "Ελαιόλαδο εξτρα παρθένο", per: "10ml", p: 0, c: 0, f: 9, kcal: 81 },
-  { emoji: "🐟", name: "Σολομός", per: "100g", p: 20, c: 0, f: 13, kcal: 208 },
+  { emoji: "🧀", name: "Φέτα", per: "100g", p: 14, c: 4, f: 21, kcal: 264, category: "fat" },
+  { emoji: "🫒", name: "Ελιές Καλαμών", per: "100g", p: 1, c: 6, f: 15, kcal: 154, category: "veg" },
+  { emoji: "🫙", name: "Ελαιόλαδο εξτρα παρθένο", per: "10ml", p: 0, c: 0, f: 9, kcal: 81, category: "fat" },
+  { emoji: "🐟", name: "Σολομός", per: "100g", p: 20, c: 0, f: 13, kcal: 208, category: "protein" },
 ];
 
 type MealFood = {
@@ -469,8 +471,28 @@ function Library({
   onAdd: (food: FoodItem) => void;
   expandedMealName: string | null;
 }) {
-  const filters = ["Όλα", "Πρωτεΐνες", "Υδατάνθρακες", "Λιπαρά", "Λαχανικά", "Φρούτα"];
+  const filters: { label: string; cat: FoodCategory | null }[] = [
+    { label: "Όλα", cat: null },
+    { label: "Πρωτεΐνες", cat: "protein" },
+    { label: "Υδατάνθρακες", cat: "carb" },
+    { label: "Λιπαρά", cat: "fat" },
+    { label: "Λαχανικά", cat: "veg" },
+    { label: "Φρούτα", cat: "fruit" },
+  ];
   const [activeFilter, setActiveFilter] = useState(0);
+  const [query, setQuery] = useState("");
+
+  const q = query.trim().toLowerCase();
+  const activeCat = filters[activeFilter].cat;
+  function matches(f: FoodItem) {
+    if (activeCat && f.category !== activeCat) return false;
+    if (q && !f.name.toLowerCase().includes(q)) return false;
+    return true;
+  }
+  const filteredPopular = popularFoods.filter(matches);
+  const filteredGreek = greekFoods.filter(matches);
+  const totalMatches = filteredPopular.length + filteredGreek.length;
+
   return (
     <aside className="sticky top-16 hidden max-h-[calc(100vh-64px)] overflow-y-auto border-r border-border bg-[#0C0C0C] p-5 md:block">
       <h2 className="mb-3 text-[13px] font-extrabold uppercase tracking-[0.12em] text-text-3">
@@ -498,6 +520,8 @@ function Library({
         </svg>
         <input
           type="search"
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
           placeholder="Αναζήτηση τροφίμου..."
           className="w-full rounded-[10px] border border-border bg-surface-1 py-2.5 pl-9 pr-3 text-[13px] text-text-1 placeholder:text-text-3 focus:border-accent focus:outline-none"
         />
@@ -506,7 +530,7 @@ function Library({
         {filters.map((f, i) => (
           <button
             type="button"
-            key={f}
+            key={f.label}
             onClick={() => setActiveFilter(i)}
             className={`cursor-pointer rounded-full border px-2.5 py-1 text-[11px] font-bold transition-colors ${
               i === activeFilter
@@ -514,13 +538,35 @@ function Library({
                 : "border-border bg-surface-1 text-text-2 hover:border-[#303030]"
             }`}
           >
-            {f}
+            {f.label}
           </button>
         ))}
       </div>
 
-      <FoodSection title="Τα πιο δημοφιλή" count="28" items={popularFoods} onAdd={onAdd} />
-      <FoodSection title="Ελληνικά / Μεσογειακά" count="42" items={greekFoods} onAdd={onAdd} />
+      {totalMatches === 0 ? (
+        <div className="rounded-xl border border-dashed border-border bg-surface-1 px-3 py-6 text-center text-[11px] text-text-3">
+          Δεν βρέθηκαν τρόφιμα με αυτό το φίλτρο.
+        </div>
+      ) : (
+        <>
+          {filteredPopular.length > 0 && (
+            <FoodSection
+              title="Τα πιο δημοφιλή"
+              count={String(filteredPopular.length)}
+              items={filteredPopular}
+              onAdd={onAdd}
+            />
+          )}
+          {filteredGreek.length > 0 && (
+            <FoodSection
+              title="Ελληνικά / Μεσογειακά"
+              count={String(filteredGreek.length)}
+              items={filteredGreek}
+              onAdd={onAdd}
+            />
+          )}
+        </>
+      )}
     </aside>
   );
 }
