@@ -1,3 +1,4 @@
+import Image from "next/image";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { createClient } from "../../../lib/supabase/server";
@@ -37,6 +38,8 @@ export default async function TrainerClientsPage() {
   // Πάρε το τελευταίο βάρος για κάθε πελάτη (batch query)
   const clientIds = clients.map((c) => c.client_id);
   const latestWeights = new Map<string, { kg: number; at: string }>();
+  const photoCounts = new Map<string, number>();
+  const latestPhotoPaths = new Map<string, { path: string; at: string }>();
   if (clientIds.length > 0) {
     const { data: allWeighIns } = await supabase
       .from("weigh_ins")
@@ -51,6 +54,38 @@ export default async function TrainerClientsPage() {
           kg: Number(w.weight_kg),
           at: w.recorded_at,
         });
+      }
+    }
+
+    // Photos: count per client + latest per client
+    const { data: allPhotos } = await supabase
+      .from("progress_photos")
+      .select("client_id, storage_path, taken_at")
+      .in("client_id", clientIds)
+      .order("taken_at", { ascending: false });
+    for (const p of (allPhotos as
+      | { client_id: string; storage_path: string; taken_at: string }[]
+      | null) ?? []) {
+      photoCounts.set(p.client_id, (photoCounts.get(p.client_id) ?? 0) + 1);
+      if (!latestPhotoPaths.has(p.client_id)) {
+        latestPhotoPaths.set(p.client_id, {
+          path: p.storage_path,
+          at: p.taken_at,
+        });
+      }
+    }
+  }
+
+  // Signed URLs για latest photo per client (batch)
+  const latestPhotoUrls = new Map<string, string>();
+  const paths = Array.from(latestPhotoPaths.values()).map((v) => v.path);
+  if (paths.length > 0) {
+    const { data: signed } = await supabase.storage
+      .from("progress-photos")
+      .createSignedUrls(paths, 60 * 60);
+    for (const s of signed ?? []) {
+      if (s.signedUrl && s.path) {
+        latestPhotoUrls.set(s.path, s.signedUrl);
       }
     }
   }
@@ -93,13 +128,22 @@ export default async function TrainerClientsPage() {
           <EmptyState />
         ) : (
           <div className="grid grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-3">
-            {clients.map((c) => (
-              <ClientCard
-                key={c.client_id}
-                client={c}
-                latestWeight={latestWeights.get(c.client_id) ?? null}
-              />
-            ))}
+            {clients.map((c) => {
+              const latestPhoto = latestPhotoPaths.get(c.client_id);
+              const latestPhotoUrl = latestPhoto
+                ? latestPhotoUrls.get(latestPhoto.path) ?? null
+                : null;
+              return (
+                <ClientCard
+                  key={c.client_id}
+                  client={c}
+                  latestWeight={latestWeights.get(c.client_id) ?? null}
+                  photoCount={photoCounts.get(c.client_id) ?? 0}
+                  latestPhotoUrl={latestPhotoUrl}
+                  latestPhotoAt={latestPhoto?.at ?? null}
+                />
+              );
+            })}
           </div>
         )}
       </main>
@@ -147,9 +191,15 @@ function EmptyState() {
 function ClientCard({
   client,
   latestWeight,
+  photoCount,
+  latestPhotoUrl,
+  latestPhotoAt,
 }: {
   client: ClientRow;
   latestWeight: { kg: number; at: string } | null;
+  photoCount: number;
+  latestPhotoUrl: string | null;
+  latestPhotoAt: string | null;
 }) {
   const name = client.profile?.full_name ?? "Χωρίς όνομα";
   const joined = new Date(client.joined_at).toLocaleDateString("el-GR", {
@@ -219,6 +269,46 @@ function ClientCard({
             <div className="mt-1 text-[11px] text-text-3">—</div>
           )}
         </div>
+      </div>
+
+      {/* Latest progress photo */}
+      <div className="rounded-xl border border-border bg-surface-2 p-3">
+        <div className="mb-2 flex items-baseline justify-between">
+          <div className="text-[10px] font-bold uppercase tracking-[0.1em] text-text-3">
+            Φωτογραφίες προόδου
+          </div>
+          <div className="font-mono text-[10px] font-semibold text-text-3">
+            {photoCount}
+          </div>
+        </div>
+        {latestPhotoUrl && latestPhotoAt ? (
+          <div className="flex items-center gap-3">
+            <div className="relative h-16 w-12 flex-shrink-0 overflow-hidden rounded-lg border border-border bg-black">
+              <Image
+                src={latestPhotoUrl}
+                alt="Τελευταία φωτο"
+                fill
+                unoptimized
+                sizes="48px"
+                className="object-cover"
+              />
+            </div>
+            <div className="min-w-0 flex-1">
+              <div className="text-[11px] font-bold text-text-1">
+                Τελευταία
+              </div>
+              <div className="mt-0.5 text-[10px] text-text-3">
+                {new Date(latestPhotoAt).toLocaleDateString("el-GR", {
+                  day: "numeric",
+                  month: "short",
+                  year: "numeric",
+                })}
+              </div>
+            </div>
+          </div>
+        ) : (
+          <div className="text-[11px] text-text-3">Δεν έχει ανεβάσει ακόμα</div>
+        )}
       </div>
     </div>
   );
