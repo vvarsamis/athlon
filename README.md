@@ -38,6 +38,8 @@
 | Trainer | Δει λίστα πελατών με assigned program + latest weight + τελευταία φωτο | `/trainer/clients` |
 | Trainer | Δει πλήρες προφίλ πελάτη (weight chart, όλες οι φωτο, sessions, chat) | `/trainer/clients/[id]` |
 | Trainer | Δει inbox με όλες τις συζητήσεις + unread badges | `/trainer/messages` |
+| Trainer | Δει agenda εβδομάδας: πελάτες × ημέρες με ✓ όπου προπονήθηκαν | `/trainer/calendar` |
+| Trainer | Δει analytics: KPIs, 8-week trend, activity + weight leaderboards | `/trainer/reports` |
 | Trainer | Δει τα προγράμματά του | `/trainer/programs` |
 | Trainer | Φτιάξει και αναθέσει πρόγραμμα προπόνησης | `/workout-builder` |
 | Trainer | Φτιάξει και αναθέσει διατροφικό πλάνο | `/nutrition` |
@@ -150,7 +152,9 @@ mockups/             — τα αρχικά 8 HTML mockups (reference μόνο)
 - ✅ Phase B: Weight tracking + progress photos (client uploads, trainer sees latest per πελάτη)
 - ✅ Phase Γ: 1-on-1 μηνύματα trainer↔client (realtime + polling backup + browser notifications + unread badges)
 - ✅ Phase Δ: Ημερολόγιο — client month grid στο /schedule, trainer week view στο /trainer/calendar
-- ⏳ Phase Ε: Αναφορές analytics
+- ✅ Phase Ε: Αναφορές /trainer/reports — 4 KPI, 8-week trend, adherence + weight change leaderboards
+
+**Όλες οι φάσεις του initial roadmap ολοκληρώθηκαν.** Το app έχει full-cycle: signup → training → tracking → βάρος/φωτο → μηνύματα → ημερολόγιο → analytics.
 
 ## Χρήσιμα links
 
