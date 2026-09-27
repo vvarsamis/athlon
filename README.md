@@ -33,8 +33,11 @@
 | Client | Καταγράψει νέο βάρος | `/home` → tap weight card |
 | Client | Δει progress: βάρος, streak, sessions, φωτογραφίες προόδου | `/progress` |
 | Client | Ανεβάσει νέα φωτογραφία προόδου (μέσω camera στο κινητό) | `/progress` → "Νέα φωτογραφία προόδου" |
+| Client | Στείλει/λάβει μηνύματα από τον προπονητή (realtime + notifications) | `/me/messages` ή BottomNav → Μηνύματα |
 | Trainer | Δει dashboard με real activity, week chart, invite code | `/trainer` |
 | Trainer | Δει λίστα πελατών με assigned program + latest weight + τελευταία φωτο | `/trainer/clients` |
+| Trainer | Δει πλήρες προφίλ πελάτη (weight chart, όλες οι φωτο, sessions, chat) | `/trainer/clients/[id]` |
+| Trainer | Δει inbox με όλες τις συζητήσεις + unread badges | `/trainer/messages` |
 | Trainer | Δει τα προγράμματά του | `/trainer/programs` |
 | Trainer | Φτιάξει και αναθέσει πρόγραμμα προπόνησης | `/workout-builder` |
 | Trainer | Φτιάξει και αναθέσει διατροφικό πλάνο | `/nutrition` |
@@ -145,7 +148,7 @@ mockups/             — τα αρχικά 8 HTML mockups (reference μόνο)
 - ✅ Phase 3: Full data model (profiles, trainer_clients, programs, nutrition)
 - ✅ Phase A: Workout sessions με real stats (streak, week count, activity feed)
 - ✅ Phase B: Weight tracking + progress photos (client uploads, trainer sees latest per πελάτη)
-- ⏳ Phase Γ: Μηνύματα (basic 1-on-1 chat trainer↔client)
+- ✅ Phase Γ: 1-on-1 μηνύματα trainer↔client (realtime + polling backup + browser notifications + unread badges)
 - ⏳ Phase Δ: Ημερολόγιο calendar view
 - ⏳ Phase Ε: Αναφορές analytics
 
