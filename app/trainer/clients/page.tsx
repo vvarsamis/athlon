@@ -215,8 +215,11 @@ function ClientCard({
       : "bg-surface-3 text-text-3";
 
   return (
-    <div className="flex flex-col gap-3 rounded-2xl border border-border bg-surface-1 p-5">
-      <div className="flex items-center gap-3">
+    <div className="flex flex-col gap-3 rounded-2xl border border-border bg-surface-1 p-5 transition-colors hover:border-[#303030]">
+      <Link
+        href={`/trainer/clients/${client.client_id}`}
+        className="flex items-center gap-3 -m-1 rounded-xl p-1 transition-colors hover:bg-surface-2"
+      >
         <div className="flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-full border-[1.5px] border-accent bg-surface-3 text-lg font-extrabold text-text-1">
           {name.charAt(0).toUpperCase()}
         </div>
@@ -225,7 +228,7 @@ function ClientCard({
             {name}
           </div>
           <div className="mt-0.5 text-[11px] text-text-3">
-            Μέλος από {joined}
+            Μέλος από {joined} · Δες προφίλ →
           </div>
         </div>
         <span
@@ -233,7 +236,7 @@ function ClientCard({
         >
           {client.status}
         </span>
-      </div>
+      </Link>
 
       <div className="grid grid-cols-2 gap-2">
         <div className="rounded-xl border border-border bg-surface-2 p-3">
