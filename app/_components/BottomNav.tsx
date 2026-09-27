@@ -182,18 +182,20 @@ export function BottomNav({ active, userId }: Props) {
       )
       .subscribe();
 
-    // Fallback: re-fetch όταν επιστρέφει το tab σε visible
+    // Fallback: re-fetch σε visible/focus + poll κάθε 10s
     function onVisibility() {
       if (document.visibilityState === "visible") refreshCount();
     }
     document.addEventListener("visibilitychange", onVisibility);
     window.addEventListener("focus", refreshCount);
+    const interval = window.setInterval(refreshCount, 10000);
 
     return () => {
       cancelled = true;
       supabase.removeChannel(channel);
       document.removeEventListener("visibilitychange", onVisibility);
       window.removeEventListener("focus", refreshCount);
+      window.clearInterval(interval);
     };
   }, [userId, active]);
 

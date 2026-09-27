@@ -123,19 +123,20 @@ export function MessageThread({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentUserId, otherUserId]);
 
-  // Fallback: re-fetch όταν το tab ξαναγίνεται visible ή γυρνάει το focus
+  // Fallback strategies:
+  //   1. Poll κάθε 5s — guaranteed delivery ακόμα κι αν realtime έχει πρόβλημα
+  //   2. Re-fetch αμέσως μόλις γυρίσει το focus/tab
   useEffect(() => {
     function onVisibility() {
       if (document.visibilityState === "visible") refetchLatest();
     }
-    function onFocus() {
-      refetchLatest();
-    }
     document.addEventListener("visibilitychange", onVisibility);
-    window.addEventListener("focus", onFocus);
+    window.addEventListener("focus", refetchLatest);
+    const interval = window.setInterval(refetchLatest, 5000);
     return () => {
       document.removeEventListener("visibilitychange", onVisibility);
-      window.removeEventListener("focus", onFocus);
+      window.removeEventListener("focus", refetchLatest);
+      window.clearInterval(interval);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [messages.length]);
