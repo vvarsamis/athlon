@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 import { createClient } from "../../../../lib/supabase/server";
 import { getProfile } from "../../../../lib/profile";
 import { MessageThread, type Message } from "../../../_components/MessageThread";
+import { ClientAssignmentChanger } from "../../../_components/ClientAssignmentChanger";
 
 type ClientAssignment = {
   status: string;
@@ -162,8 +163,11 @@ export default async function ClientDetailPage({
         <div className="mb-5 grid grid-cols-1 gap-5 lg:grid-cols-[1.4fr_1fr]">
           <WeightChartPanel weighIns={weighIns} />
           <ActiveProgramsPanel
+            clientId={clientId}
             program={assignment.program}
+            programId={assignment.assigned_program_id}
             nutritionPlan={assignment.nutrition_plan}
+            nutritionPlanId={assignment.assigned_nutrition_plan_id}
           />
         </div>
 
@@ -591,11 +595,17 @@ function ChartStat({
 }
 
 function ActiveProgramsPanel({
+  clientId,
   program,
+  programId,
   nutritionPlan,
+  nutritionPlanId,
 }: {
+  clientId: string;
   program: ClientAssignment["program"];
+  programId: string | null;
   nutritionPlan: ClientAssignment["nutrition_plan"];
+  nutritionPlanId: string | null;
 }) {
   return (
     <Panel
@@ -603,36 +613,50 @@ function ActiveProgramsPanel({
       subtitle="Τι έχει ανατεθεί στον πελάτη"
     >
       <div className="p-3.5">
-        {program ? (
-          <ProgramRow
-            variant="workout"
-            name={program.title}
-            meta={
-              [
-                program.name,
-                program.estimated_duration_min ? `${program.estimated_duration_min}'` : null,
-                program.estimated_kcal ? `${program.estimated_kcal} kcal` : null,
-              ]
-                .filter(Boolean)
-                .join(" · ") || "Χωρίς extra στοιχεία"
-            }
+        <div className="mb-2.5 last:mb-0">
+          {program ? (
+            <ProgramRow
+              variant="workout"
+              name={program.title}
+              meta={
+                [
+                  program.name,
+                  program.estimated_duration_min ? `${program.estimated_duration_min}'` : null,
+                  program.estimated_kcal ? `${program.estimated_kcal} kcal` : null,
+                ]
+                  .filter(Boolean)
+                  .join(" · ") || "Χωρίς extra στοιχεία"
+              }
+            />
+          ) : (
+            <EmptyRow text="Δεν έχει ανατεθεί πρόγραμμα προπόνησης." />
+          )}
+          <ClientAssignmentChanger
+            clientId={clientId}
+            currentId={programId}
+            assignmentType="program"
           />
-        ) : (
-          <EmptyRow text="Δεν έχει ανατεθεί πρόγραμμα προπόνησης." />
-        )}
-        {nutritionPlan ? (
-          <ProgramRow
-            variant="nutrition"
-            name={nutritionPlan.name}
-            meta={
-              nutritionPlan.target_kcal
-                ? `Στόχος ${nutritionPlan.target_kcal} kcal / ημέρα`
-                : "Διατροφικό πλάνο"
-            }
+        </div>
+        <div className="mb-2.5 last:mb-0">
+          {nutritionPlan ? (
+            <ProgramRow
+              variant="nutrition"
+              name={nutritionPlan.name}
+              meta={
+                nutritionPlan.target_kcal
+                  ? `Στόχος ${nutritionPlan.target_kcal} kcal / ημέρα`
+                  : "Διατροφικό πλάνο"
+              }
+            />
+          ) : (
+            <EmptyRow text="Δεν έχει ανατεθεί διατροφικό πλάνο." />
+          )}
+          <ClientAssignmentChanger
+            clientId={clientId}
+            currentId={nutritionPlanId}
+            assignmentType="nutrition"
           />
-        ) : (
-          <EmptyRow text="Δεν έχει ανατεθεί διατροφικό πλάνο." />
-        )}
+        </div>
       </div>
     </Panel>
   );

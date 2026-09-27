@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
 import { createClient } from "../../lib/supabase/client";
+import { ClientAssignmentModal } from "../_components/ClientAssignmentModal";
 
 type FoodItem = {
   emoji: string;
@@ -123,25 +124,23 @@ export default function NutritionPlannerPage() {
     | { kind: "success"; assignedTo: number }
     | { kind: "error"; msg: string }
   >({ kind: "idle" });
+  const [pickerOpen, setPickerOpen] = useState(false);
+  const [savedPlanId, setSavedPlanId] = useState<string | null>(null);
 
-  async function saveAndAssign(totalKcal: number) {
-    setSaving(true);
+  // Στάδιο 1: αποθήκευση πλάνου + γευμάτων + τροφίμων, χωρίς ανάθεση.
+  async function savePlanOnly(totalKcal: number): Promise<string | null> {
     setSaveState({ kind: "idle" });
     const supabase = createClient();
     const { data: userData } = await supabase.auth.getUser();
     const userId = userData.user?.id;
     if (!userId) {
-      setSaving(false);
       setSaveState({ kind: "error", msg: "Δεν είσαι συνδεδεμένος." });
-      return;
+      return null;
     }
 
-    // Pre-generate UUIDs έτσι ώστε τα child inserts να μπορούν να τρέξουν
-    // παράλληλα με το plan/meal insert (foreign keys ισχύουν στο commit end)
     const planId = crypto.randomUUID();
     const mealsWithIds = meals.map((m) => ({ ...m, mealId: crypto.randomUUID() }));
 
-    // 1. Insert plan (πρέπει να προηγηθεί για την FK)
     const { error: planErr } = await supabase.from("nutrition_plans").insert({
       id: planId,
       trainer_id: userId,
@@ -152,12 +151,10 @@ export default function NutritionPlannerPage() {
       target_kcal_max: 2250,
     });
     if (planErr) {
-      setSaving(false);
       setSaveState({ kind: "error", msg: planErr.message });
-      return;
+      return null;
     }
 
-    // 2. Παράλληλα: batch insert meals + assign to clients
     const mealRows = mealsWithIds.map((m, mi) => ({
       id: m.mealId,
       plan_id: planId,
@@ -167,22 +164,14 @@ export default function NutritionPlannerPage() {
       time: m.time,
       notes: m.notes ?? null,
     }));
-    const [mealsResult, updResult] = await Promise.all([
-      supabase.from("nutrition_meals").insert(mealRows),
-      supabase
-        .from("trainer_clients")
-        .update({ assigned_nutrition_plan_id: planId })
-        .eq("trainer_id", userId)
-        .eq("status", "active")
-        .select("client_id"),
-    ]);
-    if (mealsResult.error) {
-      setSaving(false);
-      setSaveState({ kind: "error", msg: mealsResult.error.message });
-      return;
+    const { error: mealsErr } = await supabase
+      .from("nutrition_meals")
+      .insert(mealRows);
+    if (mealsErr) {
+      setSaveState({ kind: "error", msg: mealsErr.message });
+      return null;
     }
 
-    // 3. Batch insert all foods σε ένα call
     const foodRows = mealsWithIds.flatMap((m) =>
       m.foods.map((f, fi) => ({
         meal_id: m.mealId,
@@ -201,24 +190,46 @@ export default function NutritionPlannerPage() {
         .from("nutrition_meal_foods")
         .insert(foodRows);
       if (foodErr) {
-        setSaving(false);
         setSaveState({ kind: "error", msg: foodErr.message });
-        return;
+        return null;
       }
     }
+    return planId;
+  }
 
-    if (updResult.error) {
-      setSaving(false);
-      setSaveState({
-        kind: "error",
-        msg: `Πλάνο σώθηκε αλλά η ανάθεση απέτυχε: ${updResult.error.message}`,
-      });
+  async function openPickerAfterSave(totalKcal: number) {
+    setSaving(true);
+    const planId = await savePlanOnly(totalKcal);
+    setSaving(false);
+    if (!planId) return;
+    setSavedPlanId(planId);
+    setPickerOpen(true);
+  }
+
+  async function saveOnly(totalKcal: number) {
+    setSaving(true);
+    const planId = await savePlanOnly(totalKcal);
+    setSaving(false);
+    if (!planId) return;
+    setSaveState({ kind: "success", assignedTo: 0 });
+    router.refresh();
+  }
+
+  async function assignToSelected(clientIds: string[]) {
+    if (!savedPlanId) return;
+    const supabase = createClient();
+    if (clientIds.length === 0) {
+      setSaveState({ kind: "success", assignedTo: 0 });
+      router.refresh();
       return;
     }
-    const updated = updResult.data;
-
-    setSaving(false);
-    setSaveState({ kind: "success", assignedTo: updated?.length ?? 0 });
+    const { error, data } = await supabase
+      .from("trainer_clients")
+      .update({ assigned_nutrition_plan_id: savedPlanId })
+      .in("client_id", clientIds)
+      .select("client_id");
+    if (error) throw new Error(error.message);
+    setSaveState({ kind: "success", assignedTo: data?.length ?? 0 });
     router.refresh();
   }
 
@@ -310,7 +321,15 @@ export default function NutritionPlannerPage() {
         onPlanNameChange={setPlanName}
         saving={saving}
         saveState={saveState}
-        onSave={() => saveAndAssign(totals.kcal)}
+        onSaveOnly={() => saveOnly(totals.kcal)}
+        onSaveAndAssign={() => openPickerAfterSave(totals.kcal)}
+      />
+      <ClientAssignmentModal
+        open={pickerOpen}
+        onClose={() => setPickerOpen(false)}
+        assignmentType="nutrition"
+        newItemLabel={planName.trim() || "Νέο πλάνο"}
+        onConfirm={assignToSelected}
       />
       <div className="grid grid-cols-1 md:grid-cols-[320px_1fr]">
         <Library onAdd={addFoodToExpandedMeal} expandedMealName={meals.find((m) => m.uid === expandedUid)?.name ?? null} />
@@ -350,7 +369,8 @@ function TopBar({
   onPlanNameChange,
   saving,
   saveState,
-  onSave,
+  onSaveOnly,
+  onSaveAndAssign,
 }: {
   totalKcal: number;
   planName: string;
@@ -360,7 +380,8 @@ function TopBar({
     | { kind: "idle" }
     | { kind: "success"; assignedTo: number }
     | { kind: "error"; msg: string };
-  onSave: () => void;
+  onSaveOnly: () => void;
+  onSaveAndAssign: () => void;
 }) {
   return (
     <div className="sticky top-0 z-50 flex h-16 items-center gap-4 border-b border-border bg-[#080808] px-6">
@@ -397,8 +418,10 @@ function TopBar({
       </div>
       {saveState.kind === "success" && (
         <div className="hidden items-center gap-1.5 rounded-lg border border-success/30 bg-success/[0.08] px-3 py-1.5 text-[11px] font-semibold text-success lg:flex">
-          ✓ Αποθηκεύτηκε — ανατέθηκε σε {saveState.assignedTo}{" "}
-          {saveState.assignedTo === 1 ? "πελάτη" : "πελάτες"}
+          ✓ Αποθηκεύτηκε
+          {saveState.assignedTo > 0
+            ? ` — ανατέθηκε σε ${saveState.assignedTo} ${saveState.assignedTo === 1 ? "πελάτη" : "πελάτες"}`
+            : " (χωρίς ανάθεση)"}
         </div>
       )}
       {saveState.kind === "error" && (
@@ -408,7 +431,15 @@ function TopBar({
       )}
       <button
         type="button"
-        onClick={onSave}
+        onClick={onSaveOnly}
+        disabled={saving}
+        className="rounded-[10px] border border-border bg-surface-1 px-3.5 py-2.5 text-[13px] font-bold text-text-1 hover:border-[#303030] disabled:cursor-not-allowed disabled:opacity-60"
+      >
+        {saving ? "..." : "Μόνο αποθήκευση"}
+      </button>
+      <button
+        type="button"
+        onClick={onSaveAndAssign}
         disabled={saving}
         className="flex items-center gap-2 rounded-[10px] bg-accent px-3.5 py-2.5 text-[13px] font-bold text-[#0A0A0A] shadow-[0_0_20px_rgba(197,255,0,0.3)] hover:shadow-[0_0_32px_rgba(197,255,0,0.5)] disabled:cursor-not-allowed disabled:opacity-60"
       >
@@ -425,7 +456,7 @@ function TopBar({
           <line x1="22" y1="2" x2="11" y2="13" />
           <polygon points="22 2 15 22 11 13 2 9 22 2" />
         </svg>
-        {saving ? "Αποθήκευση..." : "Αποθήκευση & Ανάθεση"}
+        {saving ? "Αποθήκευση..." : "Ανάθεση σε πελάτες..."}
       </button>
     </div>
   );

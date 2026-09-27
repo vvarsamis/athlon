@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { createClient } from "../../lib/supabase/client";
+import { ClientAssignmentModal } from "../_components/ClientAssignmentModal";
 
 const exDb = "https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises";
 
@@ -155,24 +156,22 @@ export default function WorkoutBuilderPage() {
     | { kind: "success"; assignedTo: number }
     | { kind: "error"; msg: string }
   >({ kind: "idle" });
+  const [pickerOpen, setPickerOpen] = useState(false);
+  const [savedProgramId, setSavedProgramId] = useState<string | null>(null);
 
-  async function saveAndAssign() {
-    setSaving(true);
+  // Στάδιο 1: αποθήκευση προγράμματος + ασκήσεων, χωρίς ανάθεση.
+  // Επιστρέφει το programId αν πέτυχε.
+  async function saveProgramOnly(): Promise<string | null> {
     setSaveState({ kind: "idle" });
     const supabase = createClient();
     const { data: userData } = await supabase.auth.getUser();
     const userId = userData.user?.id;
     if (!userId) {
-      setSaving(false);
       setSaveState({ kind: "error", msg: "Δεν είσαι συνδεδεμένος." });
-      return;
+      return null;
     }
 
-    // Pre-generate program UUID για να μπορέσουμε να τρέξουμε παράλληλα
-    // τα exercise inserts και το trainer_clients update
     const programId = crypto.randomUUID();
-
-    // 1. Insert program (πρέπει να προηγηθεί για την FK)
     const { error: progErr } = await supabase.from("programs").insert({
       id: programId,
       trainer_id: userId,
@@ -183,12 +182,10 @@ export default function WorkoutBuilderPage() {
       estimated_kcal: exercises.length * 75,
     });
     if (progErr) {
-      setSaving(false);
       setSaveState({ kind: "error", msg: progErr.message });
-      return;
+      return null;
     }
 
-    // 2. Παράλληλα: batch insert exercises + assign to clients
     const exerciseRows = exercises.map((ex, i) => ({
       program_id: programId,
       position: i,
@@ -200,37 +197,55 @@ export default function WorkoutBuilderPage() {
       rest_seconds: parseInt(ex.rest, 10) || null,
       notes: ex.notes ?? null,
     }));
-    const [exResult, updResult] = await Promise.all([
-      supabase.from("program_exercises").insert(exerciseRows),
-      supabase
-        .from("trainer_clients")
-        .update({ assigned_program_id: programId })
-        .eq("trainer_id", userId)
-        .eq("status", "active")
-        .select("client_id"),
-    ]);
-    if (exResult.error) {
-      setSaving(false);
-      setSaveState({ kind: "error", msg: exResult.error.message });
-      return;
+    const { error: exErr } = await supabase
+      .from("program_exercises")
+      .insert(exerciseRows);
+    if (exErr) {
+      setSaveState({ kind: "error", msg: exErr.message });
+      return null;
     }
-    if (updResult.error) {
-      setSaving(false);
-      setSaveState({
-        kind: "error",
-        msg: `Πρόγραμμα σώθηκε αλλά η ανάθεση απέτυχε: ${updResult.error.message}`,
-      });
-      return;
-    }
-    const updateData = updResult.data;
+    return programId;
+  }
 
+  // Ενέργεια κουμπιού "Ανάθεση σε πελάτες..."
+  async function openPickerAfterSave() {
+    setSaving(true);
+    const programId = await saveProgramOnly();
     setSaving(false);
-    setSaveState({
-      kind: "success",
-      assignedTo: updateData?.length ?? 0,
-    });
+    if (!programId) return;
+    setSavedProgramId(programId);
+    setPickerOpen(true);
+  }
 
-    // Refresh so trainer dashboard reflects changes
+  // Ενέργεια κουμπιού "Μόνο αποθήκευση"
+  async function saveOnly() {
+    setSaving(true);
+    const programId = await saveProgramOnly();
+    setSaving(false);
+    if (!programId) return;
+    setSaveState({ kind: "success", assignedTo: 0 });
+    router.refresh();
+  }
+
+  // Callback από το modal — assign σε επιλεγμένους
+  async function assignToSelected(clientIds: string[]) {
+    if (!savedProgramId) return;
+    const supabase = createClient();
+    if (clientIds.length === 0) {
+      // Χωρίς επιλογή: πρόγραμμα σώθηκε αλλά χωρίς ανάθεση
+      setSaveState({ kind: "success", assignedTo: 0 });
+      router.refresh();
+      return;
+    }
+    const { error, data } = await supabase
+      .from("trainer_clients")
+      .update({ assigned_program_id: savedProgramId })
+      .in("client_id", clientIds)
+      .select("client_id");
+    if (error) {
+      throw new Error(error.message);
+    }
+    setSaveState({ kind: "success", assignedTo: data?.length ?? 0 });
     router.refresh();
   }
 
@@ -268,7 +283,15 @@ export default function WorkoutBuilderPage() {
         name={name}
         saving={saving}
         saveState={saveState}
-        onSave={saveAndAssign}
+        onSaveOnly={saveOnly}
+        onSaveAndAssign={openPickerAfterSave}
+      />
+      <ClientAssignmentModal
+        open={pickerOpen}
+        onClose={() => setPickerOpen(false)}
+        assignmentType="program"
+        newItemLabel={title.trim() || "Νέο πρόγραμμα"}
+        onConfirm={assignToSelected}
       />
       <div className="grid grid-cols-1 md:grid-cols-[320px_1fr]">
         <Library onAdd={addExerciseFromLib} />
@@ -306,7 +329,8 @@ function TopBar({
   name,
   saving,
   saveState,
-  onSave,
+  onSaveOnly,
+  onSaveAndAssign,
 }: {
   name: string;
   saving: boolean;
@@ -314,7 +338,8 @@ function TopBar({
     | { kind: "idle" }
     | { kind: "success"; assignedTo: number }
     | { kind: "error"; msg: string };
-  onSave: () => void;
+  onSaveOnly: () => void;
+  onSaveAndAssign: () => void;
 }) {
   return (
     <div className="sticky top-0 z-50 flex h-16 items-center gap-4 border-b border-border bg-[#080808] px-6">
@@ -346,8 +371,10 @@ function TopBar({
       </div>
       {saveState.kind === "success" && (
         <div className="hidden items-center gap-1.5 rounded-lg border border-success/30 bg-success/[0.08] px-3 py-1.5 text-[11px] font-semibold text-success lg:flex">
-          ✓ Αποθηκεύτηκε — ανατέθηκε σε {saveState.assignedTo}{" "}
-          {saveState.assignedTo === 1 ? "πελάτη" : "πελάτες"}
+          ✓ Αποθηκεύτηκε
+          {saveState.assignedTo > 0
+            ? ` — ανατέθηκε σε ${saveState.assignedTo} ${saveState.assignedTo === 1 ? "πελάτη" : "πελάτες"}`
+            : " (χωρίς ανάθεση)"}
         </div>
       )}
       {saveState.kind === "error" && (
@@ -357,7 +384,15 @@ function TopBar({
       )}
       <button
         type="button"
-        onClick={onSave}
+        onClick={onSaveOnly}
+        disabled={saving}
+        className="rounded-[10px] border border-border bg-surface-1 px-3.5 py-2.5 text-[13px] font-bold text-text-1 hover:border-[#303030] disabled:cursor-not-allowed disabled:opacity-60"
+      >
+        {saving ? "..." : "Μόνο αποθήκευση"}
+      </button>
+      <button
+        type="button"
+        onClick={onSaveAndAssign}
         disabled={saving}
         className="flex items-center gap-2 rounded-[10px] bg-accent px-3.5 py-2.5 text-[13px] font-bold text-[#0A0A0A] shadow-[0_0_20px_rgba(197,255,0,0.3)] hover:shadow-[0_0_32px_rgba(197,255,0,0.5)] disabled:cursor-not-allowed disabled:opacity-60"
       >
@@ -374,7 +409,7 @@ function TopBar({
           <line x1="22" y1="2" x2="11" y2="13" />
           <polygon points="22 2 15 22 11 13 2 9 22 2" />
         </svg>
-        {saving ? "Αποθήκευση..." : "Αποθήκευση & Ανάθεση"}
+        {saving ? "Αποθήκευση..." : "Ανάθεση σε πελάτες..."}
       </button>
     </div>
   );
