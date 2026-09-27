@@ -2,13 +2,22 @@ import Link from "next/link";
 
 const screens = [
   { href: "/login", label: "Είσοδος", desc: "Login οθόνη" },
-  { href: "/home", label: "Αρχική", desc: "Home feed για αθλητή" },
-  { href: "/profile", label: "Προφίλ Αθλητή", desc: "Στοιχεία, μετρήσεις, ιστορικό" },
+  { href: "/signup", label: "Εγγραφή", desc: "Signup (client/trainer + invite code)" },
+  { href: "/home", label: "Αρχική (client)", desc: "Home feed με streak, βάρος, πρόγραμμα" },
+  { href: "/schedule", label: "Ημερολόγιο (client)", desc: "Month grid με προπονήσεις" },
+  { href: "/me/nutrition", label: "Διατροφή (client)", desc: "Γεύματα ημέρας" },
+  { href: "/progress", label: "Πρόοδος (client)", desc: "Stats + progress photos" },
+  { href: "/me/messages", label: "Μηνύματα (client)", desc: "Chat με τον προπονητή" },
+  { href: "/workout", label: "Προπόνηση (client)", desc: "Assigned workout runner" },
   { href: "/trainer", label: "Trainer Dashboard", desc: "Πίνακας προπονητή" },
-  { href: "/trainer/onboarding", label: "Trainer Onboarding", desc: "Εγγραφή προπονητή" },
-  { href: "/workout", label: "Προπόνηση", desc: "Single workout view" },
-  { href: "/workout-builder", label: "Workout Builder", desc: "Δημιουργία προπόνησης" },
-  { href: "/nutrition", label: "Nutrition Planner", desc: "Διατροφικό πλάνο" },
+  { href: "/trainer/clients", label: "Πελάτες (trainer)", desc: "Λίστα με weight + photo" },
+  { href: "/trainer/programs", label: "Προγράμματα (trainer)", desc: "Programs list" },
+  { href: "/trainer/messages", label: "Μηνύματα (trainer)", desc: "Inbox με unread" },
+  { href: "/trainer/calendar", label: "Ημερολόγιο (trainer)", desc: "Week grid πελατών" },
+  { href: "/trainer/reports", label: "Αναφορές (trainer)", desc: "KPIs + leaderboards" },
+  { href: "/trainer/onboarding", label: "Trainer Onboarding", desc: "Studio setup preview" },
+  { href: "/workout-builder", label: "Workout Builder", desc: "Δημιουργία προγράμματος" },
+  { href: "/nutrition", label: "Nutrition Planner", desc: "Διατροφικό πλάνο editor" },
 ];
 
 export default function Index() {
