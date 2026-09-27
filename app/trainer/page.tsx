@@ -1058,16 +1058,18 @@ function WeekChartPanel({
         <div className="mb-2 flex h-[100px] items-end gap-2">
           {useBars.map((b, i) => {
             const h = Math.max(8, Math.round((b.val / max) * 100));
+            const bg =
+              b.val > 0
+                ? b.today
+                  ? "bg-accent shadow-[0_0_16px_rgba(197,255,0,0.6)]"
+                  : "bg-accent"
+                : b.today
+                ? "bg-text-1"
+                : "bg-surface-3 opacity-40";
             return (
               <div
                 key={i}
-                className={`relative flex-1 rounded-t-md ${
-                  b.today
-                    ? "bg-text-1"
-                    : b.val === 0
-                    ? "bg-surface-3 opacity-40"
-                    : "bg-accent"
-                }`}
+                className={`relative flex-1 rounded-t-md ${bg}`}
                 style={{ height: `${h}%` }}
               >
                 {b.val > 0 && (
