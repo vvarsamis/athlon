@@ -178,7 +178,7 @@ export default async function HomePage() {
         <SectionTitle title="ΕΠΟΜΕΝΑ" actionLabel="Ημερολόγιο →" />
         <TomorrowCard />
       </div>
-      <BottomNav active="home" />
+      <BottomNav active="home" userId={user?.id} />
     </PhoneFrame>
   );
 }

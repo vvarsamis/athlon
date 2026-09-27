@@ -1,6 +1,8 @@
 import Link from "next/link";
+import { redirect } from "next/navigation";
 import { PhoneFrame } from "../_components/PhoneFrame";
 import { BottomNav } from "../_components/BottomNav";
+import { createClient } from "../../lib/supabase/server";
 
 const weekDays = ["Δ", "Τ", "Τ", "Π", "Π", "Σ", "Κ"];
 
@@ -12,7 +14,12 @@ const upcoming = [
   { day: "Παρ. 29 Μαϊ", title: "Push · Πρωτόκολλο 2", subtitle: "60' · 7 ασκήσεις", state: "next" as const, href: "/workout" },
 ];
 
-export default function SchedulePage() {
+export default async function SchedulePage() {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) redirect("/login");
   return (
     <PhoneFrame>
       <div className="relative z-[1] pb-[120px]">
@@ -120,7 +127,7 @@ export default function SchedulePage() {
           ))}
         </div>
       </div>
-      <BottomNav active="schedule" />
+      <BottomNav active="schedule" userId={user.id} />
     </PhoneFrame>
   );
 }

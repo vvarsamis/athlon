@@ -235,7 +235,7 @@ export default async function ProgressPage() {
           </div>
         )}
       </div>
-      <BottomNav active="progress" />
+      <BottomNav active="progress" userId={user.id} />
     </PhoneFrame>
   );
 }

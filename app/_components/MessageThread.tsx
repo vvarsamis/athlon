@@ -57,7 +57,30 @@ export function MessageThread({
       });
   }, [messages, currentUserId, supabase]);
 
-  // Realtime subscription
+  // Fallback re-fetch: παίρνει ό,τι πρόσθετο υπάρχει μετά το τελευταίο δικό μας
+  async function refetchLatest() {
+    const lastCreatedAt =
+      messages.length > 0
+        ? messages[messages.length - 1].created_at
+        : new Date(0).toISOString();
+    const { data } = await supabase
+      .from("messages")
+      .select("id, sender_id, recipient_id, body, read_at, created_at")
+      .or(
+        `and(sender_id.eq.${currentUserId},recipient_id.eq.${otherUserId}),and(sender_id.eq.${otherUserId},recipient_id.eq.${currentUserId})`,
+      )
+      .gt("created_at", lastCreatedAt)
+      .order("created_at", { ascending: true });
+    if (!data || data.length === 0) return;
+    setMessages((prev) => {
+      const existing = new Set(prev.map((m) => m.id));
+      const additions = (data as Message[]).filter((m) => !existing.has(m.id));
+      if (additions.length === 0) return prev;
+      return [...prev, ...additions];
+    });
+  }
+
+  // Realtime subscription (2 filters — έναν για incoming, έναν για outgoing echo)
   useEffect(() => {
     const channel = supabase
       .channel(`messages:${currentUserId}:${otherUserId}`)
@@ -67,24 +90,55 @@ export function MessageThread({
           event: "INSERT",
           schema: "public",
           table: "messages",
+          filter: `recipient_id=eq.${currentUserId}`,
         },
         (payload) => {
           const m = payload.new as Message;
-          const belongsToThread =
-            (m.sender_id === currentUserId && m.recipient_id === otherUserId) ||
-            (m.sender_id === otherUserId && m.recipient_id === currentUserId);
-          if (!belongsToThread) return;
-          setMessages((prev) => {
-            if (prev.some((p) => p.id === m.id)) return prev;
-            return [...prev, m];
-          });
+          if (m.sender_id !== otherUserId) return;
+          setMessages((prev) =>
+            prev.some((p) => p.id === m.id) ? prev : [...prev, m],
+          );
+        },
+      )
+      .on(
+        "postgres_changes",
+        {
+          event: "INSERT",
+          schema: "public",
+          table: "messages",
+          filter: `sender_id=eq.${currentUserId}`,
+        },
+        (payload) => {
+          const m = payload.new as Message;
+          if (m.recipient_id !== otherUserId) return;
+          setMessages((prev) =>
+            prev.some((p) => p.id === m.id) ? prev : [...prev, m],
+          );
         },
       )
       .subscribe();
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [supabase, currentUserId, otherUserId]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentUserId, otherUserId]);
+
+  // Fallback: re-fetch όταν το tab ξαναγίνεται visible ή γυρνάει το focus
+  useEffect(() => {
+    function onVisibility() {
+      if (document.visibilityState === "visible") refetchLatest();
+    }
+    function onFocus() {
+      refetchLatest();
+    }
+    document.addEventListener("visibilitychange", onVisibility);
+    window.addEventListener("focus", onFocus);
+    return () => {
+      document.removeEventListener("visibilitychange", onVisibility);
+      window.removeEventListener("focus", onFocus);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [messages.length]);
 
   async function handleSend() {
     const text = draft.trim();

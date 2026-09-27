@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { PhoneFrame } from "../../_components/PhoneFrame";
 import { BottomNav } from "../../_components/BottomNav";
 import { MessageThread, type Message } from "../../_components/MessageThread";
+import { NotificationPermissionButton } from "../../_components/NotificationPermissionButton";
 import { createClient } from "../../../lib/supabase/server";
 import { getProfile } from "../../../lib/profile";
 
@@ -81,14 +82,17 @@ export default async function ClientMessagesPage() {
         </header>
 
         {trainerId ? (
-          <div className="flex-1 overflow-hidden">
-            <MessageThread
-              currentUserId={user.id}
-              otherUserId={trainerId}
-              otherUserName={trainerName}
-              initialMessages={messages}
-            />
-          </div>
+          <>
+            <NotificationPermissionButton />
+            <div className="flex-1 overflow-hidden">
+              <MessageThread
+                currentUserId={user.id}
+                otherUserId={trainerId}
+                otherUserName={trainerName}
+                initialMessages={messages}
+              />
+            </div>
+          </>
         ) : (
           <div className="flex flex-1 flex-col items-center justify-center px-6 text-center">
             <div className="mb-3 flex h-14 w-14 items-center justify-center rounded-2xl bg-surface-2 text-text-3">
@@ -115,7 +119,7 @@ export default async function ClientMessagesPage() {
           </div>
         )}
       </div>
-      <BottomNav active="messages" />
+      <BottomNav active="messages" userId={user.id} />
     </PhoneFrame>
   );
 }

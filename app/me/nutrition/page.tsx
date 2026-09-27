@@ -110,6 +110,7 @@ export default async function MyNutritionPage() {
       planName={planName}
       targetMin={targetMin}
       targetMax={targetMax}
+      userId={user.id}
     />
   );
 }

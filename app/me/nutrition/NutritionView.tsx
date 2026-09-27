@@ -93,11 +93,13 @@ export default function NutritionView({
   planName,
   targetMin,
   targetMax,
+  userId,
 }: {
   meals?: Meal[];
   planName?: string;
   targetMin?: number | null;
   targetMax?: number | null;
+  userId?: string;
 }) {
   const meals = mealsProp && mealsProp.length > 0 ? mealsProp : fallbackMeals;
   const targetKcal = {
@@ -184,7 +186,7 @@ export default function NutritionView({
 
         <TrainerNote />
       </div>
-      <BottomNav active="nutrition" />
+      <BottomNav active="nutrition" userId={userId} />
     </PhoneFrame>
   );
 }

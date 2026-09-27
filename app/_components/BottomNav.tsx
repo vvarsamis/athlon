@@ -1,5 +1,9 @@
+"use client";
+
 import Link from "next/link";
+import { useEffect, useState } from "react";
 import type { ReactNode } from "react";
+import { createClient } from "../../lib/supabase/client";
 
 type Item = {
   key: string;
@@ -103,13 +107,101 @@ const items: Item[] = [
 
 type Props = {
   active: Item["key"];
+  userId?: string;
 };
 
-export function BottomNav({ active }: Props) {
+export function BottomNav({ active, userId }: Props) {
+  const [unread, setUnread] = useState(0);
+
+  useEffect(() => {
+    if (!userId) return;
+    const supabase = createClient();
+    let cancelled = false;
+
+    async function refreshCount() {
+      const { count } = await supabase
+        .from("messages")
+        .select("id", { count: "exact", head: true })
+        .eq("recipient_id", userId)
+        .is("read_at", null);
+      if (!cancelled) setUnread(count ?? 0);
+    }
+
+    // Initial fetch
+    refreshCount();
+
+    // Realtime: new incoming + read updates
+    const channel = supabase
+      .channel(`bottomnav-unread-${userId}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "INSERT",
+          schema: "public",
+          table: "messages",
+          filter: `recipient_id=eq.${userId}`,
+        },
+        (payload) => {
+          if (cancelled) return;
+          setUnread((c) => c + 1);
+          const m = payload.new as { body: string };
+          if (
+            active !== "messages" &&
+            typeof window !== "undefined" &&
+            "Notification" in window &&
+            Notification.permission === "granted"
+          ) {
+            try {
+              new Notification("Νέο μήνυμα από τον προπονητή σου", {
+                body: m.body.slice(0, 120),
+                icon: "/favicon.ico",
+                tag: "athlon-message",
+              });
+            } catch {
+              // ignore
+            }
+          }
+        },
+      )
+      .on(
+        "postgres_changes",
+        {
+          event: "UPDATE",
+          schema: "public",
+          table: "messages",
+          filter: `recipient_id=eq.${userId}`,
+        },
+        (payload) => {
+          if (cancelled) return;
+          const oldRow = payload.old as { read_at: string | null } | null;
+          const newRow = payload.new as { read_at: string | null } | null;
+          if (oldRow && newRow && !oldRow.read_at && newRow.read_at) {
+            setUnread((c) => Math.max(0, c - 1));
+          }
+        },
+      )
+      .subscribe();
+
+    // Fallback: re-fetch όταν επιστρέφει το tab σε visible
+    function onVisibility() {
+      if (document.visibilityState === "visible") refreshCount();
+    }
+    document.addEventListener("visibilitychange", onVisibility);
+    window.addEventListener("focus", refreshCount);
+
+    return () => {
+      cancelled = true;
+      supabase.removeChannel(channel);
+      document.removeEventListener("visibilitychange", onVisibility);
+      window.removeEventListener("focus", refreshCount);
+    };
+  }, [userId, active]);
+
   return (
     <nav className="absolute inset-x-0 bottom-0 z-20 flex justify-around border-t border-border bg-[rgba(10,10,10,0.92)] px-2 pb-[22px] pt-3 backdrop-blur-2xl">
       {items.map((item) => {
         const isActive = item.key === active;
+        const showBadge = item.key === "messages" && unread > 0;
         return (
           <Link
             key={item.key}
@@ -119,13 +211,18 @@ export function BottomNav({ active }: Props) {
             }`}
           >
             <span
-              className={`h-[22px] w-[22px] ${
+              className={`relative h-[22px] w-[22px] ${
                 isActive
                   ? "[&>svg]:drop-shadow-[0_0_6px_rgba(197,255,0,0.6)]"
                   : ""
               }`}
             >
               {item.icon}
+              {showBadge && (
+                <span className="absolute -right-2 -top-1 flex h-[16px] min-w-[16px] items-center justify-center rounded-full bg-accent px-1 font-mono text-[9px] font-extrabold text-[#0A0A0A] shadow-[0_0_8px_rgba(197,255,0,0.6)]">
+                  {unread > 9 ? "9+" : unread}
+                </span>
+              )}
             </span>
             {item.label}
           </Link>
