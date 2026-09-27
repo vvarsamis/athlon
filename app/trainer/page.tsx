@@ -51,6 +51,84 @@ export default async function TrainerDashboardPage() {
 
   const clients = (clientRows as ClientRow[] | null) ?? [];
   const activeClients = clients.filter((c) => c.status === "active").length;
+  const activeClientIds = clients
+    .filter((c) => c.status === "active")
+    .map((c) => c.client_id);
+
+  // Πραγματικά stats: σήμερα ολοκληρωμένες προπονήσεις πελατών του
+  let completedToday = 0;
+  let barChart: { day: string; val: number; today: boolean }[] = [];
+  let activityFeed: {
+    client_id: string;
+    client_name: string;
+    completed_at: string;
+    program_title: string | null;
+    program_name: string | null;
+  }[] = [];
+  if (activeClientIds.length > 0) {
+    // Σήμερα (00:00)
+    const now = new Date();
+    const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const { count } = await supabase
+      .from("workout_sessions")
+      .select("id", { count: "exact", head: true })
+      .in("client_id", activeClientIds)
+      .not("completed_at", "is", null)
+      .gte("completed_at", todayStart.toISOString());
+    completedToday = count ?? 0;
+
+    // Bar chart: εβδομάδα (Δ-Κ)
+    const dayOfWeek = (now.getDay() + 6) % 7; // 0 = Monday
+    const monday = new Date(now);
+    monday.setDate(now.getDate() - dayOfWeek);
+    monday.setHours(0, 0, 0, 0);
+    const { data: weekSessions } = await supabase
+      .from("workout_sessions")
+      .select("completed_at")
+      .in("client_id", activeClientIds)
+      .not("completed_at", "is", null)
+      .gte("completed_at", monday.toISOString());
+
+    const perDay = [0, 0, 0, 0, 0, 0, 0];
+    for (const s of (weekSessions as { completed_at: string }[] | null) ?? []) {
+      const d = new Date(s.completed_at);
+      const dayIdx = (d.getDay() + 6) % 7;
+      perDay[dayIdx]++;
+    }
+    const labels = ["Δ", "Τ", "Τ", "Π", "Π", "Σ", "Κ"];
+    barChart = labels.map((day, i) => ({
+      day,
+      val: perDay[i],
+      today: i === dayOfWeek,
+    }));
+
+    // Recent activity: latest 8 completed sessions
+    const { data: recent } = await supabase
+      .from("workout_sessions")
+      .select(
+        "client_id, completed_at, program_title, program_name, profile:profiles!workout_sessions_client_id_fkey(full_name)",
+      )
+      .in("client_id", activeClientIds)
+      .not("completed_at", "is", null)
+      .order("completed_at", { ascending: false })
+      .limit(8);
+    const recentRows = (recent as
+      | {
+          client_id: string;
+          completed_at: string;
+          program_title: string | null;
+          program_name: string | null;
+          profile: { full_name: string | null } | null;
+        }[]
+      | null) ?? [];
+    activityFeed = recentRows.map((r) => ({
+      client_id: r.client_id,
+      client_name: r.profile?.full_name ?? "Πελάτης",
+      completed_at: r.completed_at,
+      program_title: r.program_title,
+      program_name: r.program_name,
+    }));
+  }
 
   const fullName = firstName(profile?.full_name ?? user?.user_metadata?.full_name, user?.email);
   const firstWord = vocative(fullName.split(/\s+/)[0]);
@@ -70,12 +148,15 @@ export default async function TrainerDashboardPage() {
           inviteCode={inviteCode}
         />
         <InviteCodeCard code={inviteCode} />
-        <StatsRow clientCount={activeClients} />
+        <StatsRow
+          clientCount={activeClients}
+          completedToday={completedToday}
+        />
         <div className="grid grid-cols-1 gap-5 lg:grid-cols-[1.6fr_1fr]">
-          <ActivityPanel clients={clients} />
+          <ActivityPanel clients={clients} feed={activityFeed} />
           <div className="flex flex-col gap-5">
             <NeedsAttentionPanel />
-            <WeekChartPanel />
+            <WeekChartPanel bars={barChart} />
             <QuickActionsPanel inviteCode={inviteCode} />
           </div>
         </div>
@@ -440,7 +521,13 @@ function PlusIcon() {
   );
 }
 
-function StatsRow({ clientCount }: { clientCount: number }) {
+function StatsRow({
+  clientCount,
+  completedToday,
+}: {
+  clientCount: number;
+  completedToday: number;
+}) {
   return (
     <div className="mb-6 grid grid-cols-2 gap-4 lg:grid-cols-4">
       <StatCard
@@ -483,10 +570,13 @@ function StatsRow({ clientCount }: { clientCount: number }) {
             <polyline points="20 6 9 17 4 12" />
           </svg>
         }
-        value="8"
-        unit="/12"
-        delta="67% completion rate"
-        deltaTrend="neutral"
+        value={String(completedToday)}
+        delta={
+          completedToday === 0
+            ? "Δεν έχει ολοκληρωθεί κάτι ακόμα"
+            : `Από ${clientCount} ενεργούς πελάτες`
+        }
+        deltaTrend={completedToday > 0 ? "up" : "neutral"}
       />
       <StatCard
         label="Adherence (30d)"
@@ -504,10 +594,9 @@ function StatsRow({ clientCount }: { clientCount: number }) {
             <path d="M22 12h-4l-3 9L9 3l-3 9H2" />
           </svg>
         }
-        value="84"
-        unit="%"
-        delta="+6% από προηγ. μήνα"
-        deltaTrend="up"
+        value="—"
+        delta="Σύντομα"
+        deltaTrend="neutral"
       />
       <StatCard
         label="Έσοδα μήνα"
@@ -526,10 +615,9 @@ function StatsRow({ clientCount }: { clientCount: number }) {
             <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" />
           </svg>
         }
-        value="2.840"
-        unit="€"
-        delta="+320€ vs Απρ"
-        deltaTrend="up"
+        value="—"
+        delta="Σύντομα"
+        deltaTrend="neutral"
       />
     </div>
   );
@@ -656,14 +744,85 @@ function Panel({
 
 type StatusType = "in-progress" | "completed" | "missed" | "neutral";
 
-function ActivityPanel({ clients }: { clients: ClientRow[] }) {
-  // Αν υπάρχουν πραγματικοί πελάτες, δείξ' τους σαν λίστα με βασικά στοιχεία.
+type ActivityFeedItem = {
+  client_id: string;
+  client_name: string;
+  completed_at: string;
+  program_title: string | null;
+  program_name: string | null;
+};
+
+function ActivityPanel({
+  clients,
+  feed,
+}: {
+  clients: ClientRow[];
+  feed: ActivityFeedItem[];
+}) {
+  // Priority 1: πραγματική δραστηριότητα (completed sessions)
+  if (feed.length > 0) {
+    return (
+      <Panel
+        title="Ζωντανή δραστηριότητα"
+        subtitle="Τελευταίες ολοκληρωμένες προπονήσεις"
+      >
+        <div className="py-2">
+          {feed.map((it, i) => {
+            const when = new Date(it.completed_at);
+            const now = new Date();
+            const isToday =
+              when.getFullYear() === now.getFullYear() &&
+              when.getMonth() === now.getMonth() &&
+              when.getDate() === now.getDate();
+            const timeLabel = isToday
+              ? when.toLocaleTimeString("el-GR", {
+                  hour: "2-digit",
+                  minute: "2-digit",
+                })
+              : when.toLocaleDateString("el-GR", {
+                  day: "numeric",
+                  month: "short",
+                });
+            return (
+              <div
+                key={`${it.client_id}-${i}`}
+                className="flex cursor-pointer items-center gap-3.5 px-[22px] py-3.5 transition-colors hover:bg-surface-2"
+              >
+                <div className="flex h-[38px] w-[38px] flex-shrink-0 items-center justify-center rounded-full bg-surface-3 text-[15px] font-extrabold text-text-1">
+                  {it.client_name.charAt(0).toUpperCase()}
+                </div>
+                <div className="min-w-0 flex-1">
+                  <div className="mb-0.5 flex items-baseline gap-2">
+                    <span className="text-sm font-bold tracking-[-0.01em]">
+                      {it.client_name}
+                    </span>
+                    <StatusPill type="completed">Ολοκληρώθηκε</StatusPill>
+                  </div>
+                  <div className="text-xs leading-[1.4] text-text-2">
+                    <strong className="font-bold text-text-1">
+                      {it.program_title ?? "Προπόνηση"}
+                    </strong>
+                    {it.program_name && ` · ${it.program_name}`}
+                  </div>
+                </div>
+                <span className="font-mono text-[11px] font-semibold text-text-3">
+                  {timeLabel}
+                </span>
+              </div>
+            );
+          })}
+        </div>
+      </Panel>
+    );
+  }
+
+  // Priority 2: υπάρχουν πελάτες αλλά χωρίς προπονήσεις ακόμα
   if (clients.length > 0) {
     return (
       <Panel
         title="Οι πελάτες σου"
-        subtitle={`${clients.length} συνδεδεμένοι μέσω κωδικού πρόσκλησης`}
-        action={{ label: "Όλοι →", href: "#" }}
+        subtitle={`${clients.length} συνδεδεμένοι — δεν έχουν προπονηθεί ακόμα`}
+        action={{ label: "Όλοι →", href: "/trainer/clients" }}
       >
         <div className="py-2">
           {clients.map((c) => {
@@ -706,7 +865,7 @@ function ActivityPanel({ clients }: { clients: ClientRow[] }) {
     );
   }
 
-  // Empty state: κανένας πελάτης ακόμα
+  // Priority 3: κανένας πελάτης — demo state
   const items: {
     avatar: string;
     name: string;
@@ -875,42 +1034,53 @@ function NeedsAttentionPanel() {
   );
 }
 
-function WeekChartPanel() {
-  const bars = [
-    { day: "Δ", val: 5, h: 35 },
-    { day: "Τ", val: 9, h: 60 },
-    { day: "Τ", val: 12, h: 80 },
-    { day: "Π", val: 7, h: 50 },
-    { day: "Π", val: 10, h: 70 },
-    { day: "Σ", val: 8, h: 55, today: true },
-    { day: "Κ", val: null as number | null, h: 15, future: true },
-  ];
+function WeekChartPanel({
+  bars,
+}: {
+  bars: { day: string; val: number; today: boolean }[];
+}) {
+  const useBars =
+    bars.length === 7
+      ? bars
+      : [
+          { day: "Δ", val: 0, today: false },
+          { day: "Τ", val: 0, today: false },
+          { day: "Τ", val: 0, today: false },
+          { day: "Π", val: 0, today: false },
+          { day: "Π", val: 0, today: false },
+          { day: "Σ", val: 0, today: false },
+          { day: "Κ", val: 0, today: true },
+        ];
+  const max = Math.max(1, ...useBars.map((b) => b.val));
   return (
-    <Panel title="Αυτή την εβδομάδα" subtitle="Ολοκληρωμένες προπονήσεις">
+    <Panel title="Αυτή την εβδομάδα" subtitle="Ολοκληρωμένες προπονήσεις πελατών">
       <div className="px-[22px] py-[18px]">
         <div className="mb-2 flex h-[100px] items-end gap-2">
-          {bars.map((b, i) => (
-            <div
-              key={i}
-              className={`relative flex-1 rounded-t-md ${
-                b.today
-                  ? "bg-text-1"
-                  : b.future
-                  ? "bg-surface-3 opacity-40"
-                  : "bg-surface-3"
-              }`}
-              style={{ height: `${b.h}%` }}
-            >
-              {b.val !== null && (
-                <span className="absolute -top-[18px] left-1/2 -translate-x-1/2 font-mono text-[10px] font-bold text-text-2">
-                  {b.val}
-                </span>
-              )}
-            </div>
-          ))}
+          {useBars.map((b, i) => {
+            const h = Math.max(8, Math.round((b.val / max) * 100));
+            return (
+              <div
+                key={i}
+                className={`relative flex-1 rounded-t-md ${
+                  b.today
+                    ? "bg-text-1"
+                    : b.val === 0
+                    ? "bg-surface-3 opacity-40"
+                    : "bg-accent"
+                }`}
+                style={{ height: `${h}%` }}
+              >
+                {b.val > 0 && (
+                  <span className="absolute -top-[18px] left-1/2 -translate-x-1/2 font-mono text-[10px] font-bold text-text-2">
+                    {b.val}
+                  </span>
+                )}
+              </div>
+            );
+          })}
         </div>
         <div className="flex justify-between gap-2">
-          {bars.map((b, i) => (
+          {useBars.map((b, i) => (
             <span
               key={i}
               className={`flex-1 text-center text-[10px] font-bold uppercase tracking-[0.08em] ${

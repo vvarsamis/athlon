@@ -80,17 +80,68 @@ export default async function HomePage() {
     }
   }
 
+  // Πραγματικά sessions του πελάτη
+  let streakDays = 0;
+  let sessionsThisWeek = 0;
+  const weekTarget = 4;
+  if (user) {
+    // Streak: μέτρα διαδοχικές μέρες με τουλάχιστον 1 completed session,
+    // ξεκινώντας από σήμερα και πηγαίνοντας πίσω
+    const { data: recentSessions } = await supabase
+      .from("workout_sessions")
+      .select("completed_at")
+      .eq("client_id", user.id)
+      .not("completed_at", "is", null)
+      .order("completed_at", { ascending: false })
+      .limit(90);
+
+    const days = new Set<string>();
+    for (const s of (recentSessions as { completed_at: string }[] | null) ?? []) {
+      const d = new Date(s.completed_at);
+      const key = `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`;
+      days.add(key);
+    }
+    const today = new Date();
+    for (let i = 0; i < 90; i++) {
+      const d = new Date(today);
+      d.setDate(d.getDate() - i);
+      const key = `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`;
+      if (days.has(key)) {
+        streakDays++;
+      } else if (i === 0) {
+        // σήμερα δεν έχει session, δεν σπάει το streak — check αν χθες έχει
+        continue;
+      } else {
+        break;
+      }
+    }
+
+    // This week: Δευτέρα-Κυριακή (ISO week)
+    const now = new Date();
+    const dayOfWeek = (now.getDay() + 6) % 7; // 0 = Monday
+    const monday = new Date(now);
+    monday.setDate(now.getDate() - dayOfWeek);
+    monday.setHours(0, 0, 0, 0);
+    const { count: weekCount } = await supabase
+      .from("workout_sessions")
+      .select("id", { count: "exact", head: true })
+      .eq("client_id", user.id)
+      .not("completed_at", "is", null)
+      .gte("completed_at", monday.toISOString());
+    sessionsThisWeek = weekCount ?? 0;
+  }
+
   return (
     <PhoneFrame>
       <div className="relative z-[1] pb-[120px]">
         <StatusBar />
         <Header name={name} />
-        <StreakCard />
+        <StreakCard days={streakDays} />
 
-        <SectionTitle title="ΣΗΜΕΡΑ · ΔΕΥΤΕΡΑ 25 ΜΑΪ" />
+        <SectionTitle title="ΣΗΜΕΡΑ" />
         <TodayCard trainerName={trainerName} program={assignedProgram} />
 
-        <StatsGrid />
+        <StatsGrid completedThisWeek={sessionsThisWeek} weekTarget={weekTarget} />
 
         <SectionTitle title="ΕΠΟΜΕΝΑ" actionLabel="Ημερολόγιο →" />
         <TomorrowCard />
@@ -165,28 +216,42 @@ function Header({ name }: { name: string }) {
   );
 }
 
-function StreakCard() {
-  const dots = [
-    { state: "active" as const },
-    { state: "active" as const },
-    { state: "active" as const },
-    { state: "active" as const },
-    { state: "active" as const },
-    { state: "active" as const },
-    { state: "today" as const },
-  ];
+function StreakCard({ days }: { days: number }) {
+  // Δείχνουμε τις τελευταίες 7 μέρες: όσες πρώτες = active βάσει streak
+  const dots = Array.from({ length: 7 }).map((_, i) => {
+    // Το τελευταίο dot (i === 6) είναι "σήμερα"
+    // Streak μετράει διαδοχικές μέρες από σήμερα προς τα πίσω
+    const daysBack = 6 - i;
+    if (daysBack < days) {
+      return daysBack === 0 ? ("today" as const) : ("active" as const);
+    }
+    return "inactive" as const;
+  });
   return (
     <div className="mx-5 mb-4 mt-2 flex items-center justify-between rounded-[18px] border border-border bg-surface-1 px-[18px] py-4">
       <div className="flex items-center gap-3.5">
-        <div className="flex h-11 w-11 items-center justify-center rounded-xl text-[22px] shadow-[0_0_16px_rgba(255,107,0,0.35)] bg-gradient-to-br from-[#FF6B00] to-[#FFB800]">
-          🔥
+        <div
+          className={`flex h-11 w-11 items-center justify-center rounded-xl text-[22px] ${
+            days > 0
+              ? "bg-gradient-to-br from-[#FF6B00] to-[#FFB800] shadow-[0_0_16px_rgba(255,107,0,0.35)]"
+              : "bg-surface-3"
+          }`}
+        >
+          {days > 0 ? "🔥" : "💤"}
         </div>
         <div>
           <div className="text-[10px] font-bold uppercase tracking-[0.12em] text-text-3">
             Σερί προπονήσεων
           </div>
           <div className="mt-[3px] text-lg font-extrabold tracking-[-0.01em]">
-            <span className="font-mono text-accent">12</span> μέρες
+            {days > 0 ? (
+              <>
+                <span className="font-mono text-accent">{days}</span>{" "}
+                {days === 1 ? "μέρα" : "μέρες"}
+              </>
+            ) : (
+              <span className="text-text-2">Ξεκίνα σήμερα</span>
+            )}
           </div>
         </div>
       </div>
@@ -195,9 +260,9 @@ function StreakCard() {
           <span
             key={i}
             className={
-              d.state === "today"
+              d === "today"
                 ? "h-[26px] w-[6px] rounded-[3px] bg-accent shadow-[0_0_12px_rgba(197,255,0,0.9)]"
-                : d.state === "active"
+                : d === "active"
                 ? "h-[22px] w-[6px] rounded-[3px] bg-accent shadow-[0_0_8px_rgba(197,255,0,0.6)]"
                 : "h-[22px] w-[6px] rounded-[3px] bg-surface-3"
             }
@@ -370,7 +435,14 @@ function MetaItem({
   );
 }
 
-function StatsGrid() {
+function StatsGrid({
+  completedThisWeek,
+  weekTarget,
+}: {
+  completedThisWeek: number;
+  weekTarget: number;
+}) {
+  const pct = Math.min(100, Math.round((completedThisWeek / weekTarget) * 100));
   return (
     <div className="mt-3.5 grid grid-cols-2 gap-2.5 px-5">
       <div className="rounded-2xl border border-border bg-surface-1 p-4">
@@ -379,31 +451,30 @@ function StatsGrid() {
         </div>
         <div className="flex items-baseline gap-1">
           <div className="font-mono text-[26px] font-extrabold tracking-[-0.03em]">
-            3
+            {completedThisWeek}
           </div>
           <div className="text-[13px] font-semibold text-text-3">
-            /4 ολοκλ.
+            /{weekTarget} ολοκλ.
           </div>
         </div>
         <div className="mt-2 h-1 overflow-hidden rounded-sm bg-surface-3">
           <div
-            className="h-full rounded-sm bg-accent shadow-[0_0_6px_var(--accent)]"
-            style={{ width: "75%" }}
+            className="h-full rounded-sm bg-accent shadow-[0_0_6px_var(--accent)] transition-[width]"
+            style={{ width: `${pct}%` }}
           />
         </div>
       </div>
-      <div className="rounded-2xl border border-border bg-surface-1 p-4">
+      <div className="rounded-2xl border border-dashed border-border bg-surface-1 p-4">
         <div className="mb-2.5 text-[10px] font-bold uppercase tracking-[0.12em] text-text-3">
           Σωματικό βάρος
         </div>
         <div className="flex items-baseline gap-1">
-          <div className="font-mono text-[26px] font-extrabold tracking-[-0.03em]">
-            82.4
+          <div className="font-mono text-[16px] font-bold text-text-3">
+            Σύντομα
           </div>
-          <div className="text-[13px] font-semibold text-text-3">kg</div>
         </div>
-        <div className="mt-1.5 flex items-center gap-1 text-[11px] font-bold text-accent">
-          ↓ 0.6 kg αυτό το μήνα
+        <div className="mt-1.5 flex items-center gap-1 text-[11px] font-medium text-text-3">
+          Θα μπορείς να καταγράφεις μετρήσεις
         </div>
       </div>
     </div>
