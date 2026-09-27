@@ -82,43 +82,60 @@ export function MessageThread({
 
   // Realtime subscription (2 filters — έναν για incoming, έναν για outgoing echo)
   useEffect(() => {
-    const channel = supabase
-      .channel(`messages:${currentUserId}:${otherUserId}`)
-      .on(
-        "postgres_changes",
-        {
-          event: "INSERT",
-          schema: "public",
-          table: "messages",
-          filter: `recipient_id=eq.${currentUserId}`,
-        },
-        (payload) => {
-          const m = payload.new as Message;
-          if (m.sender_id !== otherUserId) return;
-          setMessages((prev) =>
-            prev.some((p) => p.id === m.id) ? prev : [...prev, m],
-          );
-        },
-      )
-      .on(
-        "postgres_changes",
-        {
-          event: "INSERT",
-          schema: "public",
-          table: "messages",
-          filter: `sender_id=eq.${currentUserId}`,
-        },
-        (payload) => {
-          const m = payload.new as Message;
-          if (m.recipient_id !== otherUserId) return;
-          setMessages((prev) =>
-            prev.some((p) => p.id === m.id) ? prev : [...prev, m],
-          );
-        },
-      )
-      .subscribe();
+    let channel: ReturnType<typeof supabase.channel> | null = null;
+    let cancelled = false;
+
+    async function subscribe() {
+      // Explicit auth sync ώστε το JWT να είναι πάντα available στο realtime
+      const { data: sessionData } = await supabase.auth.getSession();
+      const token = sessionData.session?.access_token;
+      if (token) {
+        supabase.realtime.setAuth(token);
+      }
+      if (cancelled) return;
+
+      channel = supabase
+        .channel(`messages:${currentUserId}:${otherUserId}`)
+        .on(
+          "postgres_changes",
+          {
+            event: "INSERT",
+            schema: "public",
+            table: "messages",
+            filter: `recipient_id=eq.${currentUserId}`,
+          },
+          (payload) => {
+            const m = payload.new as Message;
+            if (m.sender_id !== otherUserId) return;
+            setMessages((prev) =>
+              prev.some((p) => p.id === m.id) ? prev : [...prev, m],
+            );
+          },
+        )
+        .on(
+          "postgres_changes",
+          {
+            event: "INSERT",
+            schema: "public",
+            table: "messages",
+            filter: `sender_id=eq.${currentUserId}`,
+          },
+          (payload) => {
+            const m = payload.new as Message;
+            if (m.recipient_id !== otherUserId) return;
+            setMessages((prev) =>
+              prev.some((p) => p.id === m.id) ? prev : [...prev, m],
+            );
+          },
+        )
+        .subscribe();
+    }
+
+    subscribe();
+
     return () => {
-      supabase.removeChannel(channel);
+      cancelled = true;
+      if (channel) supabase.removeChannel(channel);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentUserId, otherUserId]);

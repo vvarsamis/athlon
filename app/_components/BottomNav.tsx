@@ -127,8 +127,13 @@ export function BottomNav({ active, userId }: Props) {
       if (!cancelled) setUnread(count ?? 0);
     }
 
-    // Initial fetch
-    refreshCount();
+    // Initial fetch + explicit realtime auth
+    (async () => {
+      const { data: sessionData } = await supabase.auth.getSession();
+      const token = sessionData.session?.access_token;
+      if (token) supabase.realtime.setAuth(token);
+      refreshCount();
+    })();
 
     // Realtime: new incoming + read updates
     const channel = supabase
