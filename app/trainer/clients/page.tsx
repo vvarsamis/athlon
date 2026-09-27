@@ -282,32 +282,43 @@ function ClientCard({
           </div>
         </div>
         {latestPhotoUrl && latestPhotoAt ? (
-          <div className="flex items-center gap-3">
-            <div className="relative h-16 w-12 flex-shrink-0 overflow-hidden rounded-lg border border-border bg-black">
-              <Image
-                src={latestPhotoUrl}
-                alt="Τελευταία φωτο"
-                fill
-                unoptimized
-                sizes="48px"
-                className="object-cover"
-              />
-            </div>
-            <div className="min-w-0 flex-1">
-              <div className="text-[11px] font-bold text-text-1">
-                Τελευταία
-              </div>
-              <div className="mt-0.5 text-[10px] text-text-3">
+          <a
+            href={latestPhotoUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="group relative block aspect-[4/3] w-full overflow-hidden rounded-lg border border-border bg-black"
+          >
+            <Image
+              src={latestPhotoUrl}
+              alt="Τελευταία φωτο"
+              fill
+              unoptimized
+              sizes="(max-width:768px) 100vw, 400px"
+              className="object-cover transition-opacity group-hover:opacity-80"
+            />
+            <div
+              className="absolute inset-x-0 bottom-0 flex items-center justify-between px-3 py-2"
+              style={{
+                background:
+                  "linear-gradient(0deg, rgba(0,0,0,0.85) 0%, transparent 100%)",
+              }}
+            >
+              <div className="text-[10px] font-bold uppercase tracking-[0.1em] text-text-1">
+                Τελευταία ·{" "}
                 {new Date(latestPhotoAt).toLocaleDateString("el-GR", {
                   day: "numeric",
                   month: "short",
-                  year: "numeric",
                 })}
               </div>
+              <div className="text-[10px] font-bold text-text-1 opacity-70 group-hover:opacity-100">
+                Δες full →
+              </div>
             </div>
-          </div>
+          </a>
         ) : (
-          <div className="text-[11px] text-text-3">Δεν έχει ανεβάσει ακόμα</div>
+          <div className="py-4 text-center text-[11px] text-text-3">
+            Δεν έχει ανεβάσει ακόμα
+          </div>
         )}
       </div>
     </div>
