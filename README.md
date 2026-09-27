@@ -149,7 +149,7 @@ mockups/             — τα αρχικά 8 HTML mockups (reference μόνο)
 - ✅ Phase A: Workout sessions με real stats (streak, week count, activity feed)
 - ✅ Phase B: Weight tracking + progress photos (client uploads, trainer sees latest per πελάτη)
 - ✅ Phase Γ: 1-on-1 μηνύματα trainer↔client (realtime + polling backup + browser notifications + unread badges)
-- ⏳ Phase Δ: Ημερολόγιο calendar view
+- ✅ Phase Δ: Ημερολόγιο — client month grid στο /schedule, trainer week view στο /trainer/calendar
 - ⏳ Phase Ε: Αναφορές analytics
 
 ## Χρήσιμα links
