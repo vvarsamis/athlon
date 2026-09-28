@@ -3,7 +3,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { createClient } from "../../lib/supabase/client";
 import { ClientAssignmentModal } from "../_components/ClientAssignmentModal";
 
@@ -144,6 +144,19 @@ const initialExercises: WorkoutEx[] = [
   },
 ];
 
+type LibraryExercise = {
+  id: string;
+  slug: string | null;
+  name: string;
+  name_en: string | null;
+  primary_muscle: string | null;
+  muscle_groups: string[] | null;
+  tags: string[];
+  image_start_url: string | null;
+  image_end_url: string | null;
+  owner_id: string | null;
+};
+
 export default function WorkoutBuilderPage() {
   const router = useRouter();
   const [exercises, setExercises] = useState<WorkoutEx[]>(initialExercises);
@@ -158,6 +171,38 @@ export default function WorkoutBuilderPage() {
   >({ kind: "idle" });
   const [pickerOpen, setPickerOpen] = useState(false);
   const [savedProgramId, setSavedProgramId] = useState<string | null>(null);
+
+  // Fetch από τη βάση όλες τις ασκήσεις (public + custom του user)
+  const [libraryExercises, setLibraryExercises] = useState<LibraryExercise[]>([]);
+  const [libraryLoading, setLibraryLoading] = useState(true);
+  useEffect(() => {
+    const supabase = createClient();
+    supabase
+      .from("exercises")
+      .select(
+        "id, slug, name, name_en, primary_muscle, muscle_groups, tags, image_start_url, image_end_url, owner_id",
+      )
+      .order("primary_muscle", { ascending: true })
+      .order("name", { ascending: true })
+      .then(({ data }) => {
+        setLibraryExercises((data as LibraryExercise[] | null) ?? []);
+        setLibraryLoading(false);
+      });
+  }, []);
+
+  function reloadLibrary() {
+    const supabase = createClient();
+    supabase
+      .from("exercises")
+      .select(
+        "id, slug, name, name_en, primary_muscle, muscle_groups, tags, image_start_url, image_end_url, owner_id",
+      )
+      .order("primary_muscle", { ascending: true })
+      .order("name", { ascending: true })
+      .then(({ data }) => {
+        setLibraryExercises((data as LibraryExercise[] | null) ?? []);
+      });
+  }
 
   // Στάδιο 1: αποθήκευση προγράμματος + ασκήσεων, χωρίς ανάθεση.
   // Επιστρέφει το programId αν πέτυχε.
@@ -294,7 +339,12 @@ export default function WorkoutBuilderPage() {
         onConfirm={assignToSelected}
       />
       <div className="grid grid-cols-1 md:grid-cols-[320px_1fr]">
-        <Library onAdd={addExerciseFromLib} />
+        <Library
+          onAdd={addExerciseFromLib}
+          items={libraryExercises}
+          loading={libraryLoading}
+          onCustomCreated={reloadLibrary}
+        />
         <main className="mx-auto w-full max-w-[920px] px-6 pb-12 pt-8 md:px-10">
           <WorkoutHeader
             count={exercises.length}
@@ -415,39 +465,78 @@ function TopBar({
   );
 }
 
-function Library({ onAdd }: { onAdd: (item: LibItem) => void }) {
-  // Το tag για κάθε filter — "Όλα" σημαίνει χωρίς φίλτρο
-  const filters: { label: string; tag: string | null }[] = [
-    { label: "Όλα", tag: null },
-    { label: "Στήθος", tag: "Στήθος" },
-    { label: "Πλάτη", tag: "Πλάτη" },
-    { label: "Ώμοι", tag: "Ώμοι" },
-    { label: "Πόδια", tag: "Πόδια" },
-    { label: "Χέρια", tag: "Τρικ." }, // στο data τα χέρια είναι με Τρικ./Δικ.
-    { label: "Κορμός", tag: "Κορμός" },
+function Library({
+  onAdd,
+  items,
+  loading,
+  onCustomCreated,
+}: {
+  onAdd: (item: LibItem) => void;
+  items: LibraryExercise[];
+  loading: boolean;
+  onCustomCreated: () => void;
+}) {
+  // Filters που ταιριάζουν με primary_muscle στη βάση
+  const filters: { label: string; muscle: string | null }[] = [
+    { label: "Όλα", muscle: null },
+    { label: "Στήθος", muscle: "chest" },
+    { label: "Πλάτη", muscle: "back" },
+    { label: "Ώμοι", muscle: "shoulders" },
+    { label: "Πόδια", muscle: "legs" },
+    { label: "Χέρια", muscle: "arms" }, // ειδικός χειρισμός για biceps+triceps
+    { label: "Κορμός", muscle: "core" },
+    { label: "Cardio", muscle: "cardio" },
   ];
   const [activeFilter, setActiveFilter] = useState(0);
   const [query, setQuery] = useState("");
+  const [customOpen, setCustomOpen] = useState(false);
 
   const q = query.trim().toLowerCase();
-  const activeTag = filters[activeFilter].tag;
-  function matches(it: LibItem) {
-    if (activeTag && !it.tags.some((t) => t.toLowerCase().startsWith(activeTag.toLowerCase()))) {
-      return false;
+  const activeMuscle = filters[activeFilter].muscle;
+  function matches(it: LibraryExercise) {
+    if (activeMuscle) {
+      const pm = it.primary_muscle;
+      if (activeMuscle === "arms") {
+        if (pm !== "biceps" && pm !== "triceps") return false;
+      } else if (pm !== activeMuscle) {
+        return false;
+      }
     }
-    if (q && !it.name.toLowerCase().includes(q)) return false;
+    if (q) {
+      const hay = `${it.name} ${it.name_en ?? ""} ${(it.tags ?? []).join(" ")}`.toLowerCase();
+      if (!hay.includes(q)) return false;
+    }
     return true;
   }
-  const filteredFrequent = frequentItems.filter(matches);
-  const filteredChest = chestItems.filter(matches);
-  const totalMatches = filteredFrequent.length + filteredChest.length;
+
+  const customs = items.filter((it) => it.owner_id != null).filter(matches);
+  const publics = items.filter((it) => it.owner_id == null).filter(matches);
+  const totalMatches = customs.length + publics.length;
+
+  function toLibItem(ex: LibraryExercise): LibItem {
+    return {
+      id: ex.slug ?? ex.id,
+      name: ex.name,
+      tags: ex.tags ?? [],
+      img: ex.image_start_url ?? "",
+    };
+  }
 
   return (
     <aside className="sticky top-16 hidden max-h-[calc(100vh-64px)] overflow-y-auto border-r border-border bg-[#0C0C0C] p-5 md:block">
       <div className="mb-4">
-        <h2 className="mb-3 text-[13px] font-extrabold uppercase tracking-[0.12em] text-text-3">
-          Βιβλιοθήκη ασκήσεων
-        </h2>
+        <div className="mb-3 flex items-center justify-between">
+          <h2 className="text-[13px] font-extrabold uppercase tracking-[0.12em] text-text-3">
+            Βιβλιοθήκη ασκήσεων
+          </h2>
+          <button
+            type="button"
+            onClick={() => setCustomOpen(true)}
+            className="rounded-lg border border-accent/30 bg-accent/[0.08] px-2 py-1 text-[10px] font-extrabold text-accent"
+          >
+            + Νέα
+          </button>
+        </div>
         <div className="relative mb-3">
           <svg
             viewBox="0 0 24 24"
@@ -485,31 +574,215 @@ function Library({ onAdd }: { onAdd: (item: LibItem) => void }) {
         </div>
       </div>
 
-      {totalMatches === 0 ? (
+      {loading ? (
+        <div className="rounded-xl border border-dashed border-border bg-surface-1 px-3 py-6 text-center text-[11px] text-text-3">
+          Φόρτωση ασκήσεων...
+        </div>
+      ) : totalMatches === 0 ? (
         <div className="rounded-xl border border-dashed border-border bg-surface-1 px-3 py-6 text-center text-[11px] text-text-3">
           Δεν βρέθηκαν ασκήσεις με αυτό το φίλτρο.
         </div>
       ) : (
         <>
-          {filteredFrequent.length > 0 && (
+          {customs.length > 0 && (
             <LibrarySection
-              title="Συχνά Χρησιμοποιούμενα"
-              count={String(filteredFrequent.length)}
-              items={filteredFrequent}
+              title="Οι δικές σου"
+              count={String(customs.length)}
+              items={customs.map(toLibItem)}
               onAdd={onAdd}
             />
           )}
-          {filteredChest.length > 0 && (
+          {publics.length > 0 && (
             <LibrarySection
-              title="Ασκήσεις"
-              count={String(filteredChest.length)}
-              items={filteredChest}
+              title="Βιβλιοθήκη"
+              count={String(publics.length)}
+              items={publics.map(toLibItem)}
               onAdd={onAdd}
             />
           )}
         </>
       )}
+      <CustomExerciseModal
+        open={customOpen}
+        onClose={() => setCustomOpen(false)}
+        onCreated={() => {
+          setCustomOpen(false);
+          onCustomCreated();
+        }}
+      />
     </aside>
+  );
+}
+
+function CustomExerciseModal({
+  open,
+  onClose,
+  onCreated,
+}: {
+  open: boolean;
+  onClose: () => void;
+  onCreated: () => void;
+}) {
+  const [name, setName] = useState("");
+  const [primaryMuscle, setPrimaryMuscle] = useState("chest");
+  const [tagsRaw, setTagsRaw] = useState("");
+  const [imgStart, setImgStart] = useState("");
+  const [imgEnd, setImgEnd] = useState("");
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (open) {
+      setName("");
+      setPrimaryMuscle("chest");
+      setTagsRaw("");
+      setImgStart("");
+      setImgEnd("");
+      setError(null);
+    }
+  }, [open]);
+
+  if (!open) return null;
+
+  async function submit() {
+    if (!name.trim()) {
+      setError("Δώσε όνομα άσκησης.");
+      return;
+    }
+    setSaving(true);
+    setError(null);
+    const supabase = createClient();
+    const { data: userData } = await supabase.auth.getUser();
+    const userId = userData.user?.id;
+    if (!userId) {
+      setSaving(false);
+      setError("Δεν είσαι συνδεδεμένος.");
+      return;
+    }
+    const tags = tagsRaw
+      .split(/[,;]/)
+      .map((t) => t.trim())
+      .filter(Boolean);
+    const { error: insErr } = await supabase.from("exercises").insert({
+      name: name.trim(),
+      primary_muscle: primaryMuscle,
+      muscle_groups: tags,
+      tags,
+      image_start_url: imgStart.trim() || null,
+      image_end_url: imgEnd.trim() || null,
+      owner_id: userId,
+    });
+    setSaving(false);
+    if (insErr) {
+      setError(insErr.message);
+      return;
+    }
+    onCreated();
+  }
+
+  return (
+    <div
+      className="fixed inset-0 z-[100] flex items-center justify-center bg-black/70 p-4 backdrop-blur-sm"
+      onClick={() => !saving && onClose()}
+    >
+      <div
+        className="w-full max-w-md overflow-hidden rounded-2xl border border-border bg-[#0F0F0F] shadow-2xl"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="border-b border-border px-5 py-4">
+          <div className="text-[11px] font-bold uppercase tracking-[0.14em] text-text-3">
+            Νέα άσκηση
+          </div>
+          <h2 className="mt-1 text-[16px] font-extrabold tracking-[-0.02em]">
+            Πρόσθεσε δική σου στη βιβλιοθήκη
+          </h2>
+        </div>
+        <div className="space-y-3 p-5">
+          <Field label="Όνομα άσκησης">
+            <input
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              placeholder="π.χ. Πιέσεις σε μηχανή Hammer"
+              className="w-full rounded-lg border border-border bg-surface-2 px-3 py-2 text-[13px] text-text-1 focus:border-accent focus:outline-none"
+            />
+          </Field>
+          <Field label="Κύριος μυικός group">
+            <select
+              value={primaryMuscle}
+              onChange={(e) => setPrimaryMuscle(e.target.value)}
+              className="w-full rounded-lg border border-border bg-surface-2 px-3 py-2 text-[13px] text-text-1 focus:border-accent focus:outline-none"
+            >
+              <option value="chest">Στήθος</option>
+              <option value="back">Πλάτη</option>
+              <option value="shoulders">Ώμοι</option>
+              <option value="biceps">Δικέφαλα</option>
+              <option value="triceps">Τρικέφαλα</option>
+              <option value="legs">Πόδια</option>
+              <option value="core">Κορμός</option>
+              <option value="cardio">Cardio</option>
+            </select>
+          </Field>
+          <Field label="Tags (χωρισμένα με κόμμα)">
+            <input
+              value={tagsRaw}
+              onChange={(e) => setTagsRaw(e.target.value)}
+              placeholder="Στήθος, Compound, Ώμοι"
+              className="w-full rounded-lg border border-border bg-surface-2 px-3 py-2 text-[13px] text-text-1 focus:border-accent focus:outline-none"
+            />
+          </Field>
+          <Field label="Εικόνα εκκίνησης (URL) — προαιρετικά">
+            <input
+              value={imgStart}
+              onChange={(e) => setImgStart(e.target.value)}
+              placeholder="https://..."
+              className="w-full rounded-lg border border-border bg-surface-2 px-3 py-2 text-[13px] text-text-1 focus:border-accent focus:outline-none"
+            />
+          </Field>
+          <Field label="Εικόνα τέλους (URL) — για animation">
+            <input
+              value={imgEnd}
+              onChange={(e) => setImgEnd(e.target.value)}
+              placeholder="https://..."
+              className="w-full rounded-lg border border-border bg-surface-2 px-3 py-2 text-[13px] text-text-1 focus:border-accent focus:outline-none"
+            />
+          </Field>
+        </div>
+        {error && (
+          <div className="mx-5 mb-3 rounded-lg border border-danger/30 bg-danger/[0.08] px-3 py-2 text-[12px] text-danger">
+            {error}
+          </div>
+        )}
+        <div className="flex items-center justify-end gap-2 border-t border-border px-5 py-3">
+          <button
+            type="button"
+            onClick={onClose}
+            disabled={saving}
+            className="rounded-[10px] border border-border bg-surface-1 px-3.5 py-2 text-[13px] font-bold text-text-1"
+          >
+            Άκυρο
+          </button>
+          <button
+            type="button"
+            onClick={submit}
+            disabled={saving}
+            className="rounded-[10px] bg-accent px-4 py-2 text-[13px] font-extrabold text-[#0A0A0A] shadow-[0_0_16px_rgba(197,255,0,0.35)] disabled:opacity-50"
+          >
+            {saving ? "Αποθήκευση..." : "Αποθήκευση"}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function Field({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <div>
+      <label className="mb-1 block text-[10px] font-bold uppercase tracking-[0.1em] text-text-3">
+        {label}
+      </label>
+      {children}
+    </div>
   );
 }
 

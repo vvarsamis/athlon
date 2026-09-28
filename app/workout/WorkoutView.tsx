@@ -246,7 +246,10 @@ export default function WorkoutView({
     ? currentEx.tags
     : demoTags;
   const displayImg = currentEx?.image_url ?? demoImg;
-  const displayImgAlt = currentEx?.image_url ?? demoImgAlt;
+  // Auto-derive frame2 από free-exercise-db pattern (/0.jpg → /1.jpg) για animation
+  const displayImgAlt = currentEx?.image_url
+    ? currentEx.image_url.replace(/\/0\.(jpg|png|webp)$/i, "/1.$1")
+    : demoImgAlt;
 
   return (
     <PhoneFrame>
