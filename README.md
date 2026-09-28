@@ -159,6 +159,14 @@ mockups/             — τα αρχικά 8 HTML mockups (reference μόνο)
 
 **Όλες οι φάσεις του initial roadmap ολοκληρώθηκαν.** Το app έχει full-cycle: signup → training → tracking → βάρος/φωτο → μηνύματα → ημερολόγιο → analytics.
 
+## Πρόσθετα (post-roadmap)
+
+- ✅ **Per-client program/plan assignment** (αντί mass-assign σε όλους)
+- ✅ **Per-set workout tracking** — actual reps + weight ανά σετ, detail view για trainer
+- ✅ **Exercise library (80 seed + custom)** — free-exercise-db εικόνες, animation στην προπόνηση
+- ✅ **Food library (145 seed + custom + OpenFoodFacts)** — 115 ελληνικά + 30 Hacendado + OFF search + barcode scan
+- ✅ **Delete + Edit** για προγράμματα και πλάνα διατροφής
+
 ## Χρήσιμα links
 
 - **App:** https://athlon-psi.vercel.app
