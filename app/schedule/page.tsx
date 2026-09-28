@@ -6,6 +6,7 @@ import {
   type AssignedProgram,
   type CalendarSession,
 } from "../_components/CalendarView";
+import { WeeklyPlanStrip } from "../_components/WeeklyPlanStrip";
 import { createClient } from "../../lib/supabase/server";
 import { getProfile } from "../../lib/profile";
 
@@ -88,6 +89,23 @@ export default async function SchedulePage() {
 
   const todayIso = `${nowDate.getFullYear()}-${String(nowDate.getMonth() + 1).padStart(2, "0")}-${String(nowDate.getDate()).padStart(2, "0")}`;
 
+  // Fetch όλη την εβδομάδα για preview strip
+  const { data: weekRows } = await supabase
+    .from("client_weekly_schedule")
+    .select(
+      "day_of_week, program:programs(title), plan:nutrition_plans(name)",
+    )
+    .eq("client_id", user.id);
+  const weekDays = ((weekRows as unknown as Array<{
+    day_of_week: number;
+    program: { title: string } | null;
+    plan: { name: string } | null;
+  }>) ?? []).map((r) => ({
+    day: r.day_of_week,
+    programTitle: r.program?.title ?? null,
+    planName: r.plan?.name ?? null,
+  }));
+
   return (
     <PhoneFrame>
       <div className="relative z-[1] pb-[120px]">
@@ -100,6 +118,8 @@ export default async function SchedulePage() {
             Οι προπονήσεις σου
           </h1>
         </header>
+
+        <WeeklyPlanStrip days={weekDays} today={today} />
 
         <CalendarView
           todayIso={todayIso}
