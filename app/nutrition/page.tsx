@@ -2,8 +2,8 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
-import { useEffect, useMemo, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { Suspense, useEffect, useMemo, useState } from "react";
 import { createClient } from "../../lib/supabase/client";
 import { ClientAssignmentModal } from "../_components/ClientAssignmentModal";
 
@@ -122,7 +122,18 @@ type FoodRow = {
 };
 
 export default function NutritionPlannerPage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen bg-bg" />}>
+      <NutritionPlannerContent />
+    </Suspense>
+  );
+}
+
+function NutritionPlannerContent() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const editId = searchParams.get("edit");
+  const isEditing = Boolean(editId);
   const [meals, setMeals] = useState<Meal[]>(initialMeals);
   const [expandedUid, setExpandedUid] = useState<string | null>("meal-1");
   const [planName, setPlanName] = useState("Cut Πλάνο · Βασίλης");
@@ -174,7 +185,80 @@ export default function NutritionPlannerPage() {
     reloadFoods();
   }, []);
 
+  // Prefill αν edit mode
+  useEffect(() => {
+    if (!editId) return;
+    const supabase = createClient();
+    (async () => {
+      const { data: plan } = await supabase
+        .from("nutrition_plans")
+        .select("name")
+        .eq("id", editId)
+        .maybeSingle();
+      if (plan) setPlanName((plan as { name: string }).name);
+
+      const { data: mealRows } = await supabase
+        .from("nutrition_meals")
+        .select("id, position, icon, name, time, notes")
+        .eq("plan_id", editId)
+        .order("position");
+      if (!mealRows || mealRows.length === 0) return;
+
+      const mealIds = (mealRows as { id: string }[]).map((m) => m.id);
+      const { data: foodRows } = await supabase
+        .from("nutrition_meal_foods")
+        .select("meal_id, position, emoji, name, qty, protein_g, carbs_g, fat_g, kcal")
+        .in("meal_id", mealIds)
+        .order("position");
+
+      type FoodDbRow = {
+        meal_id: string;
+        emoji: string | null;
+        name: string;
+        qty: string | null;
+        protein_g: number | null;
+        carbs_g: number | null;
+        fat_g: number | null;
+        kcal: number | null;
+      };
+      const foodsByMeal = new Map<string, MealFood[]>();
+      for (const f of (foodRows as FoodDbRow[] | null) ?? []) {
+        const list = foodsByMeal.get(f.meal_id) ?? [];
+        list.push({
+          emoji: f.emoji ?? "🍽️",
+          name: f.name,
+          qty: f.qty ?? "",
+          p: Number(f.protein_g ?? 0),
+          c: Number(f.carbs_g ?? 0),
+          f: Number(f.fat_g ?? 0),
+          k: Number(f.kcal ?? 0),
+        });
+        foodsByMeal.set(f.meal_id, list);
+      }
+
+      type MealDbRow = {
+        id: string;
+        position: number;
+        icon: string | null;
+        name: string;
+        time: string | null;
+        notes: string | null;
+      };
+      const loaded: Meal[] = (mealRows as MealDbRow[]).map((m, i) => ({
+        uid: `edit-meal-${i}`,
+        icon: m.icon ?? "🍽️",
+        name: m.name,
+        time: m.time ?? "—",
+        foods: foodsByMeal.get(m.id) ?? [],
+        note: m.notes ?? undefined,
+      }));
+      setMeals(loaded);
+      setExpandedUid(loaded[0]?.uid ?? null);
+    })();
+  }, [editId]);
+
   // Στάδιο 1: αποθήκευση πλάνου + γευμάτων + τροφίμων, χωρίς ανάθεση.
+  // Αν editId, κάνει UPDATE + delete-και-insert των children.
   async function savePlanOnly(totalKcal: number): Promise<string | null> {
     setSaveState({ kind: "idle" });
     const supabase = createClient();
@@ -185,21 +269,45 @@ export default function NutritionPlannerPage() {
       return null;
     }
 
-    const planId = crypto.randomUUID();
+    const planId = editId ?? crypto.randomUUID();
     const mealsWithIds = meals.map((m) => ({ ...m, mealId: crypto.randomUUID() }));
 
-    const { error: planErr } = await supabase.from("nutrition_plans").insert({
-      id: planId,
-      trainer_id: userId,
+    const planPayload = {
       name: planName.trim() || "Πλάνο χωρίς όνομα",
       subtitle: "Cut · Επίπεδο: Μέτριο",
       target_kcal: totalKcal,
       target_kcal_min: 2150,
       target_kcal_max: 2250,
-    });
-    if (planErr) {
-      setSaveState({ kind: "error", msg: planErr.message });
-      return null;
+    };
+
+    if (editId) {
+      const { error: updErr } = await supabase
+        .from("nutrition_plans")
+        .update(planPayload)
+        .eq("id", editId);
+      if (updErr) {
+        setSaveState({ kind: "error", msg: updErr.message });
+        return null;
+      }
+      // Delete old meals (foods cascade delete μέσω FK)
+      const { error: delErr } = await supabase
+        .from("nutrition_meals")
+        .delete()
+        .eq("plan_id", editId);
+      if (delErr) {
+        setSaveState({ kind: "error", msg: delErr.message });
+        return null;
+      }
+    } else {
+      const { error: planErr } = await supabase.from("nutrition_plans").insert({
+        id: planId,
+        trainer_id: userId,
+        ...planPayload,
+      });
+      if (planErr) {
+        setSaveState({ kind: "error", msg: planErr.message });
+        return null;
+      }
     }
 
     const mealRows = mealsWithIds.map((m, mi) => ({
@@ -368,6 +476,7 @@ export default function NutritionPlannerPage() {
         onPlanNameChange={setPlanName}
         saving={saving}
         saveState={saveState}
+        isEditing={isEditing}
         onSaveOnly={() => saveOnly(totals.kcal)}
         onSaveAndAssign={() => openPickerAfterSave(totals.kcal)}
       />
@@ -422,6 +531,7 @@ function TopBar({
   onPlanNameChange,
   saving,
   saveState,
+  isEditing,
   onSaveOnly,
   onSaveAndAssign,
 }: {
@@ -433,6 +543,7 @@ function TopBar({
     | { kind: "idle" }
     | { kind: "success"; assignedTo: number }
     | { kind: "error"; msg: string };
+  isEditing: boolean;
   onSaveOnly: () => void;
   onSaveAndAssign: () => void;
 }) {
@@ -488,7 +599,7 @@ function TopBar({
         disabled={saving}
         className="rounded-[10px] border border-border bg-surface-1 px-3.5 py-2.5 text-[13px] font-bold text-text-1 hover:border-[#303030] disabled:cursor-not-allowed disabled:opacity-60"
       >
-        {saving ? "..." : "Μόνο αποθήκευση"}
+        {saving ? "..." : isEditing ? "Μόνο ενημέρωση" : "Μόνο αποθήκευση"}
       </button>
       <button
         type="button"
@@ -509,7 +620,7 @@ function TopBar({
           <line x1="22" y1="2" x2="11" y2="13" />
           <polygon points="22 2 15 22 11 13 2 9 22 2" />
         </svg>
-        {saving ? "Αποθήκευση..." : "Ανάθεση σε πελάτες..."}
+        {saving ? "Αποθήκευση..." : isEditing ? "Ενημέρωση & Ανάθεση..." : "Ανάθεση σε πελάτες..."}
       </button>
     </div>
   );

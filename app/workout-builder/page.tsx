@@ -2,8 +2,8 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { Suspense, useEffect, useState } from "react";
 import { createClient } from "../../lib/supabase/client";
 import { ClientAssignmentModal } from "../_components/ClientAssignmentModal";
 
@@ -158,11 +158,24 @@ type LibraryExercise = {
 };
 
 export default function WorkoutBuilderPage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen bg-bg" />}>
+      <WorkoutBuilderContent />
+    </Suspense>
+  );
+}
+
+function WorkoutBuilderContent() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const editId = searchParams.get("edit");
+  const isEditing = Boolean(editId);
+
   const [exercises, setExercises] = useState<WorkoutEx[]>(initialExercises);
   const [expandedUid, setExpandedUid] = useState<string | null>("ex-01");
   const [name, setName] = useState("Push · Πρωτόκολλο 2");
   const [title, setTitle] = useState("Στήθος, ώμοι & τρικέφαλα");
+  const [editLoaded, setEditLoaded] = useState(!isEditing);
   const [saving, setSaving] = useState(false);
   const [saveState, setSaveState] = useState<
     | { kind: "idle" }
@@ -190,6 +203,52 @@ export default function WorkoutBuilderPage() {
       });
   }, []);
 
+  // Prefill αν είμαστε σε edit mode
+  useEffect(() => {
+    if (!editId) return;
+    const supabase = createClient();
+    (async () => {
+      const { data: prog } = await supabase
+        .from("programs")
+        .select("name, title")
+        .eq("id", editId)
+        .maybeSingle();
+      if (prog) {
+        setName((prog as { name: string }).name);
+        setTitle((prog as { title: string }).title);
+      }
+      const { data: exRows } = await supabase
+        .from("program_exercises")
+        .select("position, name, image_url, tags, sets, reps, rest_seconds, notes")
+        .eq("program_id", editId)
+        .order("position", { ascending: true });
+      if (exRows) {
+        const loaded: WorkoutEx[] = (exRows as {
+          position: number;
+          name: string;
+          image_url: string | null;
+          tags: string[] | null;
+          sets: string | null;
+          reps: string | null;
+          rest_seconds: number | null;
+          notes: string | null;
+        }[]).map((r, i) => ({
+          uid: `edit-${i}`,
+          name: r.name,
+          tags: r.tags ?? [],
+          img: r.image_url ?? "",
+          sets: r.sets ?? "3",
+          reps: r.reps ?? "10",
+          rest: r.rest_seconds != null ? String(r.rest_seconds) : "90",
+          notes: r.notes ?? undefined,
+        }));
+        setExercises(loaded);
+        setExpandedUid(loaded[0]?.uid ?? null);
+      }
+      setEditLoaded(true);
+    })();
+  }, [editId]);
+
   function reloadLibrary() {
     const supabase = createClient();
     supabase
@@ -205,7 +264,7 @@ export default function WorkoutBuilderPage() {
   }
 
   // Στάδιο 1: αποθήκευση προγράμματος + ασκήσεων, χωρίς ανάθεση.
-  // Επιστρέφει το programId αν πέτυχε.
+  // Επιστρέφει το programId αν πέτυχε. Αν editId, κάνει UPDATE.
   async function saveProgramOnly(): Promise<string | null> {
     setSaveState({ kind: "idle" });
     const supabase = createClient();
@@ -216,19 +275,42 @@ export default function WorkoutBuilderPage() {
       return null;
     }
 
-    const programId = crypto.randomUUID();
-    const { error: progErr } = await supabase.from("programs").insert({
-      id: programId,
-      trainer_id: userId,
+    const programId = editId ?? crypto.randomUUID();
+    const programPayload = {
       name: name.trim() || "Πρόγραμμα χωρίς όνομα",
       title: title.trim() || "Χωρίς τίτλο",
       subtitle: "Δευτέρα + Πέμπτη · ενδιάμεσο επίπεδο · 60' στόχος",
       estimated_duration_min: Math.max(20, exercises.length * 8),
       estimated_kcal: exercises.length * 75,
-    });
-    if (progErr) {
-      setSaveState({ kind: "error", msg: progErr.message });
-      return null;
+    };
+
+    if (editId) {
+      const { error: updErr } = await supabase
+        .from("programs")
+        .update(programPayload)
+        .eq("id", editId);
+      if (updErr) {
+        setSaveState({ kind: "error", msg: updErr.message });
+        return null;
+      }
+      const { error: delErr } = await supabase
+        .from("program_exercises")
+        .delete()
+        .eq("program_id", editId);
+      if (delErr) {
+        setSaveState({ kind: "error", msg: delErr.message });
+        return null;
+      }
+    } else {
+      const { error: progErr } = await supabase.from("programs").insert({
+        id: programId,
+        trainer_id: userId,
+        ...programPayload,
+      });
+      if (progErr) {
+        setSaveState({ kind: "error", msg: progErr.message });
+        return null;
+      }
     }
 
     const exerciseRows = exercises.map((ex, i) => ({
@@ -328,6 +410,7 @@ export default function WorkoutBuilderPage() {
         name={name}
         saving={saving}
         saveState={saveState}
+        isEditing={isEditing}
         onSaveOnly={saveOnly}
         onSaveAndAssign={openPickerAfterSave}
       />
@@ -379,6 +462,7 @@ function TopBar({
   name,
   saving,
   saveState,
+  isEditing,
   onSaveOnly,
   onSaveAndAssign,
 }: {
@@ -388,6 +472,7 @@ function TopBar({
     | { kind: "idle" }
     | { kind: "success"; assignedTo: number }
     | { kind: "error"; msg: string };
+  isEditing: boolean;
   onSaveOnly: () => void;
   onSaveAndAssign: () => void;
 }) {
@@ -438,7 +523,7 @@ function TopBar({
         disabled={saving}
         className="rounded-[10px] border border-border bg-surface-1 px-3.5 py-2.5 text-[13px] font-bold text-text-1 hover:border-[#303030] disabled:cursor-not-allowed disabled:opacity-60"
       >
-        {saving ? "..." : "Μόνο αποθήκευση"}
+        {saving ? "..." : isEditing ? "Μόνο ενημέρωση" : "Μόνο αποθήκευση"}
       </button>
       <button
         type="button"
@@ -459,7 +544,7 @@ function TopBar({
           <line x1="22" y1="2" x2="11" y2="13" />
           <polygon points="22 2 15 22 11 13 2 9 22 2" />
         </svg>
-        {saving ? "Αποθήκευση..." : "Ανάθεση σε πελάτες..."}
+        {saving ? "Αποθήκευση..." : isEditing ? "Ενημέρωση & Ανάθεση..." : "Ανάθεση σε πελάτες..."}
       </button>
     </div>
   );
