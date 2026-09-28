@@ -23,6 +23,8 @@ type ClientRow = {
   client_id: string;
   status: string;
   joined_at: string;
+  subscription_end: string | null;
+  monthly_fee_eur: number | null;
   profile: { full_name: string | null } | null;
 };
 
@@ -46,12 +48,27 @@ export default async function TrainerDashboardPage() {
   // Πραγματικοί πελάτες του trainer
   const { data: clientRows } = await supabase
     .from("trainer_clients")
-    .select("client_id, status, joined_at, profile:profiles!trainer_clients_client_id_fkey(full_name)")
+    .select("client_id, status, joined_at, subscription_end, monthly_fee_eur, profile:profiles!trainer_clients_client_id_fkey(full_name)")
     .eq("trainer_id", user!.id)
     .order("joined_at", { ascending: false });
 
   const clients = (clientRows as ClientRow[] | null) ?? [];
   const activeClients = clients.filter((c) => c.status === "active").length;
+  const monthlyRevenue = clients
+    .filter((c) => c.status === "active" && c.monthly_fee_eur != null)
+    .reduce((sum, c) => sum + Number(c.monthly_fee_eur ?? 0), 0);
+  const clientsWithFee = clients.filter(
+    (c) => c.status === "active" && c.monthly_fee_eur != null,
+  ).length;
+  // Λήγουν εντός 30 μερών
+  const now30 = new Date();
+  const in30 = new Date(now30);
+  in30.setDate(now30.getDate() + 30);
+  const expiringSoonCount = clients.filter((c) => {
+    if (!c.subscription_end) return false;
+    const end = new Date(c.subscription_end);
+    return end >= now30 && end <= in30;
+  }).length;
   const activeClientIds = clients
     .filter((c) => c.status === "active")
     .map((c) => c.client_id);
@@ -152,6 +169,9 @@ export default async function TrainerDashboardPage() {
         <StatsRow
           clientCount={activeClients}
           completedToday={completedToday}
+          monthlyRevenue={monthlyRevenue}
+          clientsWithFee={clientsWithFee}
+          expiringSoonCount={expiringSoonCount}
         />
         <div className="grid grid-cols-1 gap-5 lg:grid-cols-[1.6fr_1fr]">
           <ActivityPanel clients={clients} feed={activityFeed} />
@@ -532,9 +552,15 @@ function PlusIcon() {
 function StatsRow({
   clientCount,
   completedToday,
+  monthlyRevenue,
+  clientsWithFee,
+  expiringSoonCount,
 }: {
   clientCount: number;
   completedToday: number;
+  monthlyRevenue: number;
+  clientsWithFee: number;
+  expiringSoonCount: number;
 }) {
   return (
     <div className="mb-6 grid grid-cols-2 gap-4 lg:grid-cols-4">
@@ -587,7 +613,7 @@ function StatsRow({
         deltaTrend={completedToday > 0 ? "up" : "neutral"}
       />
       <StatCard
-        label="Adherence (30d)"
+        label="Λήγουν σύντομα"
         icon={
           <svg
             width="16"
@@ -599,12 +625,13 @@ function StatsRow({
             strokeLinecap="round"
             strokeLinejoin="round"
           >
-            <path d="M22 12h-4l-3 9L9 3l-3 9H2" />
+            <circle cx="12" cy="12" r="10" />
+            <polyline points="12 6 12 12 16 14" />
           </svg>
         }
-        value="—"
-        delta="Σύντομα"
-        deltaTrend="neutral"
+        value={String(expiringSoonCount)}
+        delta={expiringSoonCount > 0 ? "συνδρομές σε 30 μέρες" : "καμία επικείμενη λήξη"}
+        deltaTrend={expiringSoonCount > 0 ? "down" : "neutral"}
       />
       <StatCard
         label="Έσοδα μήνα"
@@ -623,9 +650,13 @@ function StatsRow({
             <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" />
           </svg>
         }
-        value="—"
-        delta="Σύντομα"
-        deltaTrend="neutral"
+        value={`€${monthlyRevenue.toFixed(0)}`}
+        delta={
+          clientsWithFee > 0
+            ? `${clientsWithFee}/${clientCount} με συνδρομή`
+            : "Χωρίς ενεργές συνδρομές"
+        }
+        deltaTrend={monthlyRevenue > 0 ? "up" : "neutral"}
       />
     </div>
   );
