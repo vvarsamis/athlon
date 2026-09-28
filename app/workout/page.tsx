@@ -28,15 +28,25 @@ export default async function WorkoutPage() {
     redirect("/trainer");
   }
 
-  // Βρες το assigned program
-  const { data: link } = await supabase
-    .from("trainer_clients")
-    .select("assigned_program_id")
-    .eq("client_id", user.id)
-    .maybeSingle();
-
-  const programId = (link as { assigned_program_id: string | null } | null)
-    ?.assigned_program_id ?? null;
+  // Resolve today's program: weekly_schedule πρώτο, μετά fallback στο assigned_program_id
+  const today = (new Date().getDay() + 6) % 7; // Δευτέρα = 0
+  const [linkRes, scheduleRes] = await Promise.all([
+    supabase
+      .from("trainer_clients")
+      .select("assigned_program_id")
+      .eq("client_id", user.id)
+      .maybeSingle(),
+    supabase
+      .from("client_weekly_schedule")
+      .select("program_id")
+      .eq("client_id", user.id)
+      .eq("day_of_week", today)
+      .maybeSingle(),
+  ]);
+  const programId =
+    (scheduleRes.data as { program_id: string | null } | null)?.program_id ??
+    (linkRes.data as { assigned_program_id: string | null } | null)?.assigned_program_id ??
+    null;
 
   let programName: string | null = null;
   let programTitle: string | null = null;

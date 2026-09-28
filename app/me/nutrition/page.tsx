@@ -38,12 +38,22 @@ export default async function MyNutritionPage() {
     redirect("/trainer");
   }
 
-  // Βρες το assigned plan μέσω trainer_clients + trainer_id για barcode scanner "στείλε στον προπονητή"
-  const { data: link } = await supabase
-    .from("trainer_clients")
-    .select("assigned_nutrition_plan_id, trainer_id")
-    .eq("client_id", user.id)
-    .maybeSingle();
+  // Resolve today's meal plan: weekly_schedule πρώτο, μετά fallback στο assigned_nutrition_plan_id
+  const today = (new Date().getDay() + 6) % 7; // Δευτέρα = 0
+  const [linkRes, scheduleRes] = await Promise.all([
+    supabase
+      .from("trainer_clients")
+      .select("assigned_nutrition_plan_id, trainer_id")
+      .eq("client_id", user.id)
+      .maybeSingle(),
+    supabase
+      .from("client_weekly_schedule")
+      .select("nutrition_plan_id")
+      .eq("client_id", user.id)
+      .eq("day_of_week", today)
+      .maybeSingle(),
+  ]);
+  const link = linkRes.data;
   const trainerId = (link as { trainer_id: string | null } | null)?.trainer_id ?? null;
 
   let meals: Meal[] = [];
@@ -51,8 +61,10 @@ export default async function MyNutritionPage() {
   let targetMin: number | null = null;
   let targetMax: number | null = null;
 
-  const planId = (link as { assigned_nutrition_plan_id: string | null } | null)
-    ?.assigned_nutrition_plan_id;
+  const planId =
+    (scheduleRes.data as { nutrition_plan_id: string | null } | null)?.nutrition_plan_id ??
+    (link as { assigned_nutrition_plan_id: string | null } | null)?.assigned_nutrition_plan_id ??
+    null;
   if (planId) {
     const { data: plan } = await supabase
       .from("nutrition_plans")

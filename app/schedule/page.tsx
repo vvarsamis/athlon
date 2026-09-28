@@ -37,41 +37,56 @@ export default async function SchedulePage() {
   const { data: link } = await supabase
     .from("trainer_clients")
     .select(
-      "assigned_program_id, program:programs(id, name, title, estimated_duration_min, estimated_kcal)",
+      "assigned_program_id",
     )
     .eq("client_id", user.id)
     .maybeSingle();
-  const programBasic =
-    (
-      link as {
-        program: {
-          id: string;
-          name: string;
-          title: string;
-          estimated_duration_min: number | null;
-          estimated_kcal: number | null;
-        } | null;
-      } | null
-    )?.program ?? null;
+
+  // Resolve today's program: weekly πρώτο, μετά fallback
+  const nowDate = new Date();
+  const today = (nowDate.getDay() + 6) % 7; // Δευτέρα = 0
+  const { data: scheduleRow } = await supabase
+    .from("client_weekly_schedule")
+    .select("program_id")
+    .eq("client_id", user.id)
+    .eq("day_of_week", today)
+    .maybeSingle();
+  const todayProgramId =
+    (scheduleRow as { program_id: string | null } | null)?.program_id ??
+    (link as { assigned_program_id: string | null } | null)?.assigned_program_id ??
+    null;
 
   let assignedProgram: AssignedProgram = null;
-  if (programBasic) {
-    const { count } = await supabase
-      .from("program_exercises")
-      .select("id", { count: "exact", head: true })
-      .eq("program_id", programBasic.id);
-    assignedProgram = {
-      id: programBasic.id,
-      name: programBasic.name,
-      title: programBasic.title,
-      duration_min: programBasic.estimated_duration_min,
-      kcal: programBasic.estimated_kcal,
-      exerciseCount: count ?? 0,
-    };
+  if (todayProgramId) {
+    const { data: programBasic } = await supabase
+      .from("programs")
+      .select("id, name, title, estimated_duration_min, estimated_kcal")
+      .eq("id", todayProgramId)
+      .maybeSingle();
+    if (programBasic) {
+      const { count } = await supabase
+        .from("program_exercises")
+        .select("id", { count: "exact", head: true })
+        .eq("program_id", (programBasic as { id: string }).id);
+      const p = programBasic as {
+        id: string;
+        name: string;
+        title: string;
+        estimated_duration_min: number | null;
+        estimated_kcal: number | null;
+      };
+      assignedProgram = {
+        id: p.id,
+        name: p.name,
+        title: p.title,
+        duration_min: p.estimated_duration_min,
+        kcal: p.estimated_kcal,
+        exerciseCount: count ?? 0,
+      };
+    }
   }
 
-  const now = new Date();
-  const todayIso = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
+  const todayIso = `${nowDate.getFullYear()}-${String(nowDate.getMonth() + 1).padStart(2, "0")}-${String(nowDate.getDate()).padStart(2, "0")}`;
 
   return (
     <PhoneFrame>

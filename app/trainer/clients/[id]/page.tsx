@@ -6,6 +6,10 @@ import { getProfile } from "../../../../lib/profile";
 import { MessageThread, type Message } from "../../../_components/MessageThread";
 import { ClientAssignmentChanger } from "../../../_components/ClientAssignmentChanger";
 import { SubscriptionCard } from "../../../_components/SubscriptionCard";
+import {
+  WeeklyScheduleEditor,
+  type ScheduleRow,
+} from "../../../_components/WeeklyScheduleEditor";
 
 type ClientAssignment = {
   status: string;
@@ -108,6 +112,30 @@ export default async function ClientDetailPage({
     .limit(100);
   const messages = (messagesData as Message[] | null) ?? [];
 
+  // Weekly schedule + διαθέσιμα προγράμματα/πλάνα του trainer
+  const [programsRes, plansRes, scheduleRes] = await Promise.all([
+    supabase
+      .from("programs")
+      .select("id, title, name")
+      .eq("trainer_id", user.id)
+      .order("created_at", { ascending: false }),
+    supabase
+      .from("nutrition_plans")
+      .select("id, name, target_kcal")
+      .eq("trainer_id", user.id)
+      .order("created_at", { ascending: false }),
+    supabase
+      .from("client_weekly_schedule")
+      .select("day_of_week, program_id, nutrition_plan_id")
+      .eq("client_id", clientId),
+  ]);
+  const trainerPrograms =
+    (programsRes.data as { id: string; title: string; name: string }[] | null) ?? [];
+  const trainerPlans =
+    (plansRes.data as { id: string; name: string; target_kcal: number | null }[] | null) ??
+    [];
+  const weeklySchedule = (scheduleRes.data as ScheduleRow[] | null) ?? [];
+
   // Computed stats
   const latestWeight = weighIns.length > 0 ? weighIns[weighIns.length - 1] : null;
   const firstWeight = weighIns.length > 0 ? weighIns[0] : null;
@@ -170,6 +198,15 @@ export default async function ClientDetailPage({
             subscriptionStart={assignment.subscription_start}
             subscriptionEnd={assignment.subscription_end}
             monthlyFeeEur={assignment.monthly_fee_eur != null ? Number(assignment.monthly_fee_eur) : null}
+          />
+        </div>
+
+        <div className="mb-5">
+          <WeeklyScheduleEditor
+            clientId={clientId}
+            programs={trainerPrograms}
+            plans={trainerPlans}
+            initialSchedule={weeklySchedule}
           />
         </div>
 

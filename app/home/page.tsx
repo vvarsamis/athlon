@@ -59,16 +59,29 @@ export default async function HomePage() {
     } | null;
     trainerName = linkAny?.trainer?.full_name ?? null;
 
-    if (linkAny?.assigned_program_id) {
+    // Resolve today's program: weekly_schedule πρώτο, μετά fallback στο assigned_program_id
+    const today = (new Date().getDay() + 6) % 7; // Δευτέρα = 0
+    const { data: scheduleRow } = await supabase
+      .from("client_weekly_schedule")
+      .select("program_id")
+      .eq("client_id", user.id)
+      .eq("day_of_week", today)
+      .maybeSingle();
+    const todayProgramId =
+      (scheduleRow as { program_id: string | null } | null)?.program_id ??
+      linkAny?.assigned_program_id ??
+      null;
+
+    if (todayProgramId) {
       const { data: prog } = await supabase
         .from("programs")
         .select("name, title, estimated_duration_min, estimated_kcal")
-        .eq("id", linkAny.assigned_program_id)
+        .eq("id", todayProgramId)
         .single();
       const { count: exCount } = await supabase
         .from("program_exercises")
         .select("id", { count: "exact", head: true })
-        .eq("program_id", linkAny.assigned_program_id);
+        .eq("program_id", todayProgramId);
       if (prog) {
         assignedProgram = {
           name: prog.name,
