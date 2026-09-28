@@ -180,6 +180,11 @@ export default async function HomePage() {
 
         <SectionTitle title="ΣΗΜΕΡΑ" />
         <TodayCard trainerName={trainerName} program={assignedProgram} />
+        {/* DEBUG: dev-time only marker */}
+        <div className="mx-5 mt-2 rounded-lg border border-warning/30 bg-warning/[0.06] px-3 py-2 font-mono text-[10px] text-warning">
+          🐛 DEBUG · user={user?.id?.slice(0, 8) ?? "none"} · assignedProgram=
+          {assignedProgram ? assignedProgram.title : "NULL"} · trainerName={trainerName ?? "none"}
+        </div>
 
         <StatsGrid
           completedThisWeek={sessionsThisWeek}
