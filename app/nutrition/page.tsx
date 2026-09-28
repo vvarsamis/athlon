@@ -3,11 +3,12 @@
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { createClient } from "../../lib/supabase/client";
 import { ClientAssignmentModal } from "../_components/ClientAssignmentModal";
 
-type FoodCategory = "protein" | "carb" | "fat" | "veg" | "fruit";
+type FoodCategory = "protein" | "carb" | "fat" | "veg" | "fruit" | "dairy" | "snack" | "drink" | "prepared" | "other";
+type FoodOrigin = "gr" | "es" | "off" | "custom" | null;
 type FoodItem = {
   emoji: string;
   name: string;
@@ -17,23 +18,10 @@ type FoodItem = {
   f: number;
   kcal: number;
   category: FoodCategory;
+  brand: string | null;
+  origin: FoodOrigin;
+  ownerId: string | null;
 };
-
-const popularFoods: FoodItem[] = [
-  { emoji: "🍗", name: "Κοτόπουλο στήθος", per: "100g", p: 23, c: 0, f: 1.5, kcal: 110, category: "protein" },
-  { emoji: "🥚", name: "Αυγό (ολόκληρο)", per: "1 τεμ", p: 6, c: 0.6, f: 5, kcal: 78, category: "protein" },
-  { emoji: "🥛", name: "Ελληνικό γιαούρτι 2%", per: "100g", p: 10, c: 4, f: 2, kcal: 80, category: "protein" },
-  { emoji: "🌾", name: "Βρώμη", per: "100g", p: 13, c: 68, f: 7, kcal: 379, category: "carb" },
-  { emoji: "🍚", name: "Ρύζι basmati (μαγειρ.)", per: "100g", p: 2.7, c: 28, f: 0.4, kcal: 130, category: "carb" },
-  { emoji: "🍌", name: "Μπανάνα", per: "100g", p: 1.1, c: 23, f: 0.3, kcal: 89, category: "fruit" },
-];
-
-const greekFoods: FoodItem[] = [
-  { emoji: "🧀", name: "Φέτα", per: "100g", p: 14, c: 4, f: 21, kcal: 264, category: "fat" },
-  { emoji: "🫒", name: "Ελιές Καλαμών", per: "100g", p: 1, c: 6, f: 15, kcal: 154, category: "veg" },
-  { emoji: "🫙", name: "Ελαιόλαδο εξτρα παρθένο", per: "10ml", p: 0, c: 0, f: 9, kcal: 81, category: "fat" },
-  { emoji: "🐟", name: "Σολομός", per: "100g", p: 20, c: 0, f: 13, kcal: 208, category: "protein" },
-];
 
 type MealFood = {
   emoji: string;
@@ -115,6 +103,24 @@ const initialMeals: Meal[] = [
   },
 ];
 
+type FoodRow = {
+  id: string;
+  slug: string | null;
+  name: string;
+  name_en: string | null;
+  brand: string | null;
+  category: FoodCategory | null;
+  emoji: string | null;
+  portion_size: number | null;
+  portion_unit: string | null;
+  protein_g: number | null;
+  carbs_g: number | null;
+  fat_g: number | null;
+  kcal: number | null;
+  origin: FoodOrigin;
+  owner_id: string | null;
+};
+
 export default function NutritionPlannerPage() {
   const router = useRouter();
   const [meals, setMeals] = useState<Meal[]>(initialMeals);
@@ -128,6 +134,45 @@ export default function NutritionPlannerPage() {
   >({ kind: "idle" });
   const [pickerOpen, setPickerOpen] = useState(false);
   const [savedPlanId, setSavedPlanId] = useState<string | null>(null);
+
+  // Fetch foods από τη βάση (public + custom)
+  const [libraryFoods, setLibraryFoods] = useState<FoodItem[]>([]);
+  const [libraryLoading, setLibraryLoading] = useState(true);
+
+  function rowToFoodItem(r: FoodRow): FoodItem {
+    const unit = r.portion_unit ?? "g";
+    const size = r.portion_size ?? 100;
+    const per = unit === "g" ? `${size}g` : unit === "ml" ? `${size}ml` : unit === "piece" ? `${size === 1 ? "" : size + " "}τεμ` : unit === "slice" ? `${size === 1 ? "" : size + " "}φέτα` : `${size}${unit}`;
+    return {
+      emoji: r.emoji ?? "🍽️",
+      name: r.brand ? `${r.name} (${r.brand})` : r.name,
+      per,
+      p: Number(r.protein_g ?? 0),
+      c: Number(r.carbs_g ?? 0),
+      f: Number(r.fat_g ?? 0),
+      kcal: Number(r.kcal ?? 0),
+      category: (r.category ?? "other") as FoodCategory,
+      brand: r.brand,
+      origin: r.origin,
+      ownerId: r.owner_id,
+    };
+  }
+
+  async function reloadFoods() {
+    const supabase = createClient();
+    const { data } = await supabase
+      .from("foods")
+      .select(
+        "id, slug, name, name_en, brand, category, emoji, portion_size, portion_unit, protein_g, carbs_g, fat_g, kcal, origin, owner_id",
+      )
+      .order("name", { ascending: true });
+    setLibraryFoods(((data as FoodRow[] | null) ?? []).map(rowToFoodItem));
+    setLibraryLoading(false);
+  }
+
+  useEffect(() => {
+    reloadFoods();
+  }, []);
 
   // Στάδιο 1: αποθήκευση πλάνου + γευμάτων + τροφίμων, χωρίς ανάθεση.
   async function savePlanOnly(totalKcal: number): Promise<string | null> {
@@ -334,7 +379,13 @@ export default function NutritionPlannerPage() {
         onConfirm={assignToSelected}
       />
       <div className="grid grid-cols-1 md:grid-cols-[320px_1fr]">
-        <Library onAdd={addFoodToExpandedMeal} expandedMealName={meals.find((m) => m.uid === expandedUid)?.name ?? null} />
+        <Library
+          onAdd={addFoodToExpandedMeal}
+          expandedMealName={meals.find((m) => m.uid === expandedUid)?.name ?? null}
+          items={libraryFoods}
+          loading={libraryLoading}
+          onFoodsChanged={reloadFoods}
+        />
         <main className="mx-auto w-full max-w-[920px] px-6 pb-12 pt-8 md:px-10">
           <PlanHeader
             totals={totals}
@@ -467,9 +518,15 @@ function TopBar({
 function Library({
   onAdd,
   expandedMealName,
+  items,
+  loading,
+  onFoodsChanged,
 }: {
   onAdd: (food: FoodItem) => void;
   expandedMealName: string | null;
+  items: FoodItem[];
+  loading: boolean;
+  onFoodsChanged: () => void;
 }) {
   const filters: { label: string; cat: FoodCategory | null }[] = [
     { label: "Όλα", cat: null },
@@ -478,9 +535,16 @@ function Library({
     { label: "Λιπαρά", cat: "fat" },
     { label: "Λαχανικά", cat: "veg" },
     { label: "Φρούτα", cat: "fruit" },
+    { label: "Γαλακτοκομικά", cat: "dairy" },
+    { label: "Έτοιμα", cat: "prepared" },
+    { label: "Snacks", cat: "snack" },
+    { label: "Ροφήματα", cat: "drink" },
   ];
   const [activeFilter, setActiveFilter] = useState(0);
   const [query, setQuery] = useState("");
+  const [customOpen, setCustomOpen] = useState(false);
+  const [offSearching, setOffSearching] = useState(false);
+  const [offError, setOffError] = useState<string | null>(null);
 
   const q = query.trim().toLowerCase();
   const activeCat = filters[activeFilter].cat;
@@ -489,15 +553,95 @@ function Library({
     if (q && !f.name.toLowerCase().includes(q)) return false;
     return true;
   }
-  const filteredPopular = popularFoods.filter(matches);
-  const filteredGreek = greekFoods.filter(matches);
-  const totalMatches = filteredPopular.length + filteredGreek.length;
+
+  const customs = items.filter((f) => f.ownerId != null).filter(matches);
+  const greeks = items.filter((f) => f.ownerId == null && f.origin === "gr").filter(matches);
+  const spanish = items.filter((f) => f.ownerId == null && f.origin === "es").filter(matches);
+  const others = items.filter((f) => f.ownerId == null && f.origin !== "gr" && f.origin !== "es").filter(matches);
+  const totalMatches = customs.length + greeks.length + spanish.length + others.length;
+
+  async function searchOpenFoodFacts() {
+    if (!q) return;
+    setOffSearching(true);
+    setOffError(null);
+    try {
+      const res = await fetch(
+        `https://world.openfoodfacts.org/cgi/search.pl?search_terms=${encodeURIComponent(q)}&search_simple=1&action=process&json=1&page_size=8`,
+      );
+      const j = (await res.json()) as {
+        products?: Array<{
+          code?: string;
+          product_name?: string;
+          product_name_el?: string;
+          brands?: string;
+          image_small_url?: string;
+          nutriments?: {
+            "energy-kcal_100g"?: number;
+            proteins_100g?: number;
+            carbohydrates_100g?: number;
+            fat_100g?: number;
+          };
+        }>;
+      };
+      const products = j.products ?? [];
+      if (products.length === 0) {
+        setOffError("Δεν βρέθηκε τίποτα στο OpenFoodFacts.");
+        setOffSearching(false);
+        return;
+      }
+      const supabase = createClient();
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+      if (!user) {
+        setOffError("Δεν είσαι συνδεδεμένος.");
+        setOffSearching(false);
+        return;
+      }
+      const rows = products
+        .filter((p) => p.product_name && p.nutriments)
+        .slice(0, 5)
+        .map((p) => ({
+          name: p.product_name_el ?? p.product_name!,
+          brand: p.brands ?? null,
+          barcode: p.code ?? null,
+          category: "other",
+          emoji: "📦",
+          image_url: p.image_small_url ?? null,
+          portion_size: 100,
+          portion_unit: "g",
+          protein_g: p.nutriments?.proteins_100g ?? 0,
+          carbs_g: p.nutriments?.carbohydrates_100g ?? 0,
+          fat_g: p.nutriments?.fat_100g ?? 0,
+          kcal: p.nutriments?.["energy-kcal_100g"] ?? 0,
+          origin: "off",
+          owner_id: user.id,
+        }));
+      if (rows.length > 0) {
+        await supabase.from("foods").upsert(rows, { onConflict: "barcode" });
+        onFoodsChanged();
+      }
+    } catch (e) {
+      setOffError(e instanceof Error ? e.message : "Αποτυχία σύνδεσης.");
+    } finally {
+      setOffSearching(false);
+    }
+  }
 
   return (
     <aside className="sticky top-16 hidden max-h-[calc(100vh-64px)] overflow-y-auto border-r border-border bg-[#0C0C0C] p-5 md:block">
-      <h2 className="mb-3 text-[13px] font-extrabold uppercase tracking-[0.12em] text-text-3">
-        Βιβλιοθήκη τροφίμων
-      </h2>
+      <div className="mb-3 flex items-center justify-between">
+        <h2 className="text-[13px] font-extrabold uppercase tracking-[0.12em] text-text-3">
+          Βιβλιοθήκη τροφίμων
+        </h2>
+        <button
+          type="button"
+          onClick={() => setCustomOpen(true)}
+          className="rounded-lg border border-accent/30 bg-accent/[0.08] px-2 py-1 text-[10px] font-extrabold text-accent"
+        >
+          + Νέο
+        </button>
+      </div>
       {expandedMealName ? (
         <div className="mb-3 rounded-[10px] border border-accent/30 bg-accent/[0.06] px-3 py-2 text-[11px] font-bold text-accent">
           Προσθήκη στο: {expandedMealName}
@@ -543,31 +687,155 @@ function Library({
         ))}
       </div>
 
-      {totalMatches === 0 ? (
+      {loading ? (
         <div className="rounded-xl border border-dashed border-border bg-surface-1 px-3 py-6 text-center text-[11px] text-text-3">
-          Δεν βρέθηκαν τρόφιμα με αυτό το φίλτρο.
+          Φόρτωση τροφίμων...
         </div>
       ) : (
         <>
-          {filteredPopular.length > 0 && (
-            <FoodSection
-              title="Τα πιο δημοφιλή"
-              count={String(filteredPopular.length)}
-              items={filteredPopular}
-              onAdd={onAdd}
-            />
+          {totalMatches === 0 ? (
+            <div className="rounded-xl border border-dashed border-border bg-surface-1 px-3 py-6 text-center text-[11px] text-text-3">
+              Δεν βρέθηκε τίποτα τοπικά.
+            </div>
+          ) : (
+            <>
+              {customs.length > 0 && (
+                <FoodSection title="Δικά σου" count={String(customs.length)} items={customs} onAdd={onAdd} />
+              )}
+              {greeks.length > 0 && (
+                <FoodSection title="Ελληνικά" count={String(greeks.length)} items={greeks} onAdd={onAdd} />
+              )}
+              {spanish.length > 0 && (
+                <FoodSection title="Hacendado (Mercadona)" count={String(spanish.length)} items={spanish} onAdd={onAdd} />
+              )}
+              {others.length > 0 && (
+                <FoodSection title="Άλλα" count={String(others.length)} items={others} onAdd={onAdd} />
+              )}
+            </>
           )}
-          {filteredGreek.length > 0 && (
-            <FoodSection
-              title="Ελληνικά / Μεσογειακά"
-              count={String(filteredGreek.length)}
-              items={filteredGreek}
-              onAdd={onAdd}
-            />
+          {q.length >= 2 && (
+            <div className="mt-4 border-t border-border pt-3">
+              <button
+                type="button"
+                onClick={searchOpenFoodFacts}
+                disabled={offSearching}
+                className="w-full rounded-lg border border-accent/40 bg-accent/[0.06] px-3 py-2 text-[11px] font-bold text-accent disabled:opacity-50"
+              >
+                {offSearching ? "Ψάχνω OpenFoodFacts..." : `🔎 Ψάξε στο OpenFoodFacts "${q}"`}
+              </button>
+              {offError && (
+                <div className="mt-2 rounded-lg border border-danger/30 bg-danger/[0.08] px-3 py-2 text-[11px] text-danger">
+                  {offError}
+                </div>
+              )}
+            </div>
           )}
         </>
       )}
+      <CustomFoodModal open={customOpen} onClose={() => setCustomOpen(false)} onCreated={() => { setCustomOpen(false); onFoodsChanged(); }} />
     </aside>
+  );
+}
+
+function CustomFoodModal({
+  open,
+  onClose,
+  onCreated,
+}: {
+  open: boolean;
+  onClose: () => void;
+  onCreated: () => void;
+}) {
+  const [name, setName] = useState("");
+  const [emoji, setEmoji] = useState("🍽️");
+  const [category, setCategory] = useState<FoodCategory>("other");
+  const [portionSize, setPortionSize] = useState("100");
+  const [portionUnit, setPortionUnit] = useState("g");
+  const [p, setP] = useState("");
+  const [c, setC] = useState("");
+  const [f, setF] = useState("");
+  const [kcal, setKcal] = useState("");
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (open) {
+      setName(""); setEmoji("🍽️"); setCategory("other");
+      setPortionSize("100"); setPortionUnit("g");
+      setP(""); setC(""); setF(""); setKcal("");
+      setError(null);
+    }
+  }, [open]);
+
+  if (!open) return null;
+
+  async function submit() {
+    if (!name.trim()) { setError("Δώσε όνομα."); return; }
+    setSaving(true); setError(null);
+    const supabase = createClient();
+    const { data: userData } = await supabase.auth.getUser();
+    const userId = userData.user?.id;
+    if (!userId) { setSaving(false); setError("Δεν είσαι συνδεδεμένος."); return; }
+    const { error: insErr } = await supabase.from("foods").insert({
+      name: name.trim(),
+      emoji: emoji.trim() || "🍽️",
+      category,
+      portion_size: parseFloat(portionSize) || 100,
+      portion_unit: portionUnit,
+      protein_g: parseFloat(p) || 0,
+      carbs_g: parseFloat(c) || 0,
+      fat_g: parseFloat(f) || 0,
+      kcal: parseFloat(kcal) || 0,
+      origin: "custom",
+      owner_id: userId,
+    });
+    setSaving(false);
+    if (insErr) { setError(insErr.message); return; }
+    onCreated();
+  }
+
+  return (
+    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/70 p-4 backdrop-blur-sm" onClick={() => !saving && onClose()}>
+      <div className="w-full max-w-md overflow-hidden rounded-2xl border border-border bg-[#0F0F0F] shadow-2xl" onClick={(e) => e.stopPropagation()}>
+        <div className="border-b border-border px-5 py-4">
+          <div className="text-[11px] font-bold uppercase tracking-[0.14em] text-text-3">Νέο τρόφιμο</div>
+          <h2 className="mt-1 text-[16px] font-extrabold">Πρόσθεσε δικό σου</h2>
+        </div>
+        <div className="space-y-3 p-5">
+          <div className="grid grid-cols-[80px_1fr] gap-2">
+            <input value={emoji} onChange={(e) => setEmoji(e.target.value)} placeholder="🍽️" className="rounded-lg border border-border bg-surface-2 px-3 py-2 text-center text-[18px] focus:border-accent focus:outline-none" />
+            <input value={name} onChange={(e) => setName(e.target.value)} placeholder="π.χ. Πρωτεΐνη Whey Vanilla" className="rounded-lg border border-border bg-surface-2 px-3 py-2 text-[13px] focus:border-accent focus:outline-none" />
+          </div>
+          <select value={category} onChange={(e) => setCategory(e.target.value as FoodCategory)} className="w-full rounded-lg border border-border bg-surface-2 px-3 py-2 text-[13px] focus:border-accent focus:outline-none">
+            <option value="protein">Πρωτεΐνη</option>
+            <option value="carb">Υδατάνθρακες</option>
+            <option value="fat">Λιπαρά</option>
+            <option value="dairy">Γαλακτοκομικά</option>
+            <option value="veg">Λαχανικά</option>
+            <option value="fruit">Φρούτα</option>
+            <option value="prepared">Έτοιμο</option>
+            <option value="snack">Snack</option>
+            <option value="drink">Ρόφημα</option>
+            <option value="other">Άλλο</option>
+          </select>
+          <div className="grid grid-cols-2 gap-2">
+            <label className="text-[10px] font-bold uppercase text-text-3">Μερίδα<input value={portionSize} onChange={(e) => setPortionSize(e.target.value)} inputMode="decimal" className="mt-1 w-full rounded-lg border border-border bg-surface-2 px-3 py-2 text-[13px] focus:border-accent focus:outline-none" /></label>
+            <label className="text-[10px] font-bold uppercase text-text-3">Μονάδα<select value={portionUnit} onChange={(e) => setPortionUnit(e.target.value)} className="mt-1 w-full rounded-lg border border-border bg-surface-2 px-3 py-2 text-[13px] focus:border-accent focus:outline-none"><option value="g">g</option><option value="ml">ml</option><option value="piece">τεμάχιο</option><option value="slice">φέτα</option></select></label>
+          </div>
+          <div className="grid grid-cols-4 gap-2">
+            <label className="text-[10px] font-bold uppercase text-text-3">P (g)<input value={p} onChange={(e) => setP(e.target.value)} inputMode="decimal" className="mt-1 w-full rounded-lg border border-border bg-surface-2 px-2 py-2 text-center text-[13px] focus:border-accent focus:outline-none" /></label>
+            <label className="text-[10px] font-bold uppercase text-text-3">C (g)<input value={c} onChange={(e) => setC(e.target.value)} inputMode="decimal" className="mt-1 w-full rounded-lg border border-border bg-surface-2 px-2 py-2 text-center text-[13px] focus:border-accent focus:outline-none" /></label>
+            <label className="text-[10px] font-bold uppercase text-text-3">F (g)<input value={f} onChange={(e) => setF(e.target.value)} inputMode="decimal" className="mt-1 w-full rounded-lg border border-border bg-surface-2 px-2 py-2 text-center text-[13px] focus:border-accent focus:outline-none" /></label>
+            <label className="text-[10px] font-bold uppercase text-text-3">kcal<input value={kcal} onChange={(e) => setKcal(e.target.value)} inputMode="decimal" className="mt-1 w-full rounded-lg border border-border bg-surface-2 px-2 py-2 text-center text-[13px] focus:border-accent focus:outline-none" /></label>
+          </div>
+        </div>
+        {error && (<div className="mx-5 mb-3 rounded-lg border border-danger/30 bg-danger/[0.08] px-3 py-2 text-[12px] text-danger">{error}</div>)}
+        <div className="flex items-center justify-end gap-2 border-t border-border px-5 py-3">
+          <button type="button" onClick={onClose} disabled={saving} className="rounded-[10px] border border-border bg-surface-1 px-3.5 py-2 text-[13px] font-bold text-text-1">Άκυρο</button>
+          <button type="button" onClick={submit} disabled={saving} className="rounded-[10px] bg-accent px-4 py-2 text-[13px] font-extrabold text-[#0A0A0A] shadow-[0_0_16px_rgba(197,255,0,0.35)] disabled:opacity-50">{saving ? "Αποθήκευση..." : "Αποθήκευση"}</button>
+        </div>
+      </div>
+    </div>
   );
 }
 
