@@ -47,7 +47,7 @@
 
 ## Data model
 
-8 πίνακες + 1 storage bucket, όλα με RLS enabled:
+9 πίνακες + 1 storage bucket, όλα με RLS enabled:
 
 ```
 profiles           id ↔ auth.users, user_type (client|trainer), full_name, invite_code
@@ -61,6 +61,8 @@ workout_sessions   client_id, program_id, program_title/name snapshots, started_
 workout_session_sets session_id, position, name, set_number, target/actual reps+weight, done_at
 weigh_ins          client_id, weight_kg, notes, recorded_at
 progress_photos    client_id, storage_path, weight_kg?, notes, taken_at  (+ storage bucket "progress-photos")
+messages           sender_id, recipient_id, body, read_at, created_at (realtime enabled)
+exercises          slug, name, name_en, primary_muscle, muscle_groups[], tags[], image_start_url, image_end_url, owner_id
 ```
 
 Migrations στο `supabase/migrations/` — τρέχονται χειροκίνητα στο Supabase SQL Editor.
