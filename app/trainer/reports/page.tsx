@@ -6,6 +6,8 @@ import { getProfile } from "../../../lib/profile";
 type ClientRow = {
   client_id: string;
   status: string;
+  subscription_end: string | null;
+  monthly_fee_eur: number | null;
   profile: { full_name: string | null } | null;
 };
 
@@ -40,7 +42,7 @@ export default async function ReportsPage() {
   const { data: clientsData } = await supabase
     .from("trainer_clients")
     .select(
-      "client_id, status, profile:profiles!trainer_clients_client_id_fkey(full_name)",
+      "client_id, status, subscription_end, monthly_fee_eur, profile:profiles!trainer_clients_client_id_fkey(full_name)",
     )
     .eq("trainer_id", user.id);
   const allClients = (clientsData as ClientRow[] | null) ?? [];
@@ -156,6 +158,35 @@ export default async function ReportsPage() {
     .filter((r) => r.measurements >= 2)
     .sort((a, b) => Math.abs(b.delta) - Math.abs(a.delta));
 
+  // Revenue από συνδρομές (μόνο active πελάτες με fee)
+  const monthlyRevenue = activeClients.reduce(
+    (sum, c) => sum + (c.monthly_fee_eur != null ? Number(c.monthly_fee_eur) : 0),
+    0,
+  );
+  const clientsWithFee = activeClients.filter((c) => c.monthly_fee_eur != null).length;
+
+  // Expiring soon (εντός 30 μερών)
+  const in30days = new Date(now);
+  in30days.setDate(now.getDate() + 30);
+  const expiringSoon = allClients
+    .filter((c) => {
+      if (!c.subscription_end) return false;
+      const end = new Date(c.subscription_end);
+      return end >= now && end <= in30days;
+    })
+    .map((c) => {
+      const end = new Date(c.subscription_end!);
+      const days = Math.max(0, Math.round((end.getTime() - now.getTime()) / (86400 * 1000)));
+      return {
+        id: c.client_id,
+        name: c.profile?.full_name ?? "Χωρίς όνομα",
+        endDate: c.subscription_end!,
+        daysLeft: days,
+        fee: c.monthly_fee_eur != null ? Number(c.monthly_fee_eur) : null,
+      };
+    })
+    .sort((a, b) => a.daysLeft - b.daysLeft);
+
   const monthLabel = now.toLocaleDateString("el-GR", {
     month: "long",
     year: "numeric",
@@ -189,11 +220,21 @@ export default async function ReportsPage() {
         {/* KPI cards */}
         <div className="mb-6 grid grid-cols-2 gap-4 lg:grid-cols-4">
           <KPICard
+            label="Έσοδα μήνα"
+            value={`€${monthlyRevenue.toFixed(0)}`}
+            sub={
+              clientsWithFee > 0
+                ? `${clientsWithFee}/${activeClients.length} πελάτες με συνδρομή`
+                : "Χωρίς ενεργές συνδρομές"
+            }
+            trend={monthlyRevenue > 0 ? "up" : "neutral"}
+            featured
+          />
+          <KPICard
             label={`Προπονήσεις ${monthLabel}`}
             value={String(totalSessionsMonth)}
             sub={`${activeClientsThisMonth}/${activeClients.length} πελάτες ενεργοί`}
             trend={totalSessionsMonth > 0 ? "up" : "neutral"}
-            featured
           />
           <KPICard
             label="Ενεργοί πελάτες"
@@ -206,16 +247,10 @@ export default async function ReportsPage() {
             trend="neutral"
           />
           <KPICard
-            label="Μέσος όρος / πελάτη"
-            value={avgSessionsPerClient.toFixed(1)}
-            sub="προπονήσεις τον μήνα"
-            trend="neutral"
-          />
-          <KPICard
-            label="Καταγραφές βάρους"
-            value={String(totalWeighIns)}
-            sub="τελευταίες 90 μέρες"
-            trend={totalWeighIns > 0 ? "up" : "neutral"}
+            label="Λήγουν σύντομα"
+            value={String(expiringSoon.length)}
+            sub={expiringSoon.length > 0 ? "εντός 30 μερών" : "καμία επικείμενη λήξη"}
+            trend={expiringSoon.length > 0 ? "down" : "neutral"}
           />
         </div>
 
@@ -308,11 +343,55 @@ export default async function ReportsPage() {
           />
         </div>
 
+        {/* Expiring subscriptions */}
+        {expiringSoon.length > 0 && (
+          <div className="mt-5">
+            <LeaderboardPanel
+              title="Συνδρομές που λήγουν"
+              subtitle="Επόμενες 30 μέρες — προτείνε ανανέωση"
+              rows={expiringSoon}
+              emptyText=""
+              renderRow={(r) => (
+                <>
+                  <div className="min-w-0 flex-1">
+                    <div className="truncate text-[13px] font-extrabold tracking-[-0.01em]">
+                      {r.name}
+                    </div>
+                    <div className="mt-0.5 font-mono text-[11px] text-text-3">
+                      Λήγει{" "}
+                      {new Date(r.endDate).toLocaleDateString("el-GR", {
+                        day: "numeric",
+                        month: "short",
+                      })}
+                      {r.fee != null && ` · €${r.fee}/μήνα`}
+                    </div>
+                  </div>
+                  <div
+                    className={`font-mono text-[16px] font-extrabold ${r.daysLeft <= 7 ? "text-danger" : r.daysLeft <= 14 ? "text-warning" : "text-text-2"}`}
+                  >
+                    {r.daysLeft}
+                    <span className="ml-1 text-[10px] font-semibold text-text-3">
+                      {r.daysLeft === 1 ? "μέρα" : "μέρες"}
+                    </span>
+                  </div>
+                </>
+              )}
+              hrefFor={(r) => `/trainer/clients/${r.id}`}
+            />
+          </div>
+        )}
+
         {/* Adherence hint */}
         <div className="mt-6 rounded-xl border border-border bg-surface-2 p-4 text-[11px] text-text-3">
           <strong className="font-bold text-text-2">Adherence:</strong>{" "}
           υπολογίζεται ως προπονήσεις μήνα / (εβδομάδες που πέρασαν × {EXPECTED_SESSIONS_PER_WEEK}).
           Στο μέλλον θα ορίζεται custom per πελάτη.
+        </div>
+        <div className="mt-3 rounded-xl border border-border bg-surface-2 p-4 text-[11px] text-text-3">
+          <strong className="font-bold text-text-2">Έσοδα:</strong>{" "}
+          άθροισμα μηνιαίας χρέωσης όλων των active πελατών.
+          Ρύθμισε συνδρομή από το προφίλ κάθε πελάτη.
+          Έλαβα καταγραφή <strong>{totalWeighIns}</strong> βαρών (90 μέρες).
         </div>
       </main>
     </div>

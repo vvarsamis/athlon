@@ -5,12 +5,16 @@ import { createClient } from "../../../../lib/supabase/server";
 import { getProfile } from "../../../../lib/profile";
 import { MessageThread, type Message } from "../../../_components/MessageThread";
 import { ClientAssignmentChanger } from "../../../_components/ClientAssignmentChanger";
+import { SubscriptionCard } from "../../../_components/SubscriptionCard";
 
 type ClientAssignment = {
   status: string;
   joined_at: string;
   assigned_program_id: string | null;
   assigned_nutrition_plan_id: string | null;
+  subscription_start: string | null;
+  subscription_end: string | null;
+  monthly_fee_eur: number | null;
   profile: { full_name: string | null; avatar_url: string | null } | null;
   program: { name: string; title: string; estimated_duration_min: number | null; estimated_kcal: number | null } | null;
   nutrition_plan: { name: string; target_kcal: number | null } | null;
@@ -41,7 +45,7 @@ export default async function ClientDetailPage({
   const { data: rel } = await supabase
     .from("trainer_clients")
     .select(
-      "status, joined_at, assigned_program_id, assigned_nutrition_plan_id, profile:profiles!trainer_clients_client_id_fkey(full_name, avatar_url), program:programs(name, title, estimated_duration_min, estimated_kcal), nutrition_plan:nutrition_plans(name, target_kcal)",
+      "status, joined_at, assigned_program_id, assigned_nutrition_plan_id, subscription_start, subscription_end, monthly_fee_eur, profile:profiles!trainer_clients_client_id_fkey(full_name, avatar_url), program:programs(name, title, estimated_duration_min, estimated_kcal), nutrition_plan:nutrition_plans(name, target_kcal)",
     )
     .eq("trainer_id", user.id)
     .eq("client_id", clientId)
@@ -159,6 +163,15 @@ export default async function ClientDetailPage({
           streak={streak}
           totalSessions={completedSessions.length}
         />
+
+        <div className="mb-5">
+          <SubscriptionCard
+            clientId={clientId}
+            subscriptionStart={assignment.subscription_start}
+            subscriptionEnd={assignment.subscription_end}
+            monthlyFeeEur={assignment.monthly_fee_eur != null ? Number(assignment.monthly_fee_eur) : null}
+          />
+        </div>
 
         <div className="mb-5 grid grid-cols-1 gap-5 lg:grid-cols-[1.4fr_1fr]">
           <WeightChartPanel weighIns={weighIns} />
