@@ -63,21 +63,21 @@ begin
 insert into public.exercises (slug, name, name_en, primary_muscle, muscle_groups, equipment, level, category, tags, image_start_url, image_end_url) values
   ('bench-press-barbell', 'Πιέσεις πάγκου με μπάρα', 'Barbell Bench Press', 'chest', ARRAY['Στήθος','Τρικέφαλα'], 'barbell', 'intermediate', 'strength', ARRAY['Στήθος','Τρικ.','Compound'], ex_db||'Barbell_Bench_Press_-_Medium_Grip/0.jpg', ex_db||'Barbell_Bench_Press_-_Medium_Grip/1.jpg'),
   ('bench-press-dumbbell', 'Πιέσεις πάγκου με αλτήρες', 'Dumbbell Bench Press', 'chest', ARRAY['Στήθος','Τρικέφαλα'], 'dumbbell', 'beginner', 'strength', ARRAY['Στήθος','Τρικ.'], ex_db||'Dumbbell_Bench_Press/0.jpg', ex_db||'Dumbbell_Bench_Press/1.jpg'),
-  ('incline-bench-barbell', 'Πιέσεις σε επικλινή πάγκο με μπάρα', 'Barbell Incline Bench Press', 'chest', ARRAY['Στήθος','Ώμοι'], 'barbell', 'intermediate', 'strength', ARRAY['Στήθος','Ώμοι','Compound'], ex_db||'Barbell_Incline_Bench_Press_Medium-Grip/0.jpg', ex_db||'Barbell_Incline_Bench_Press_Medium-Grip/1.jpg'),
+  ('incline-bench-barbell', 'Πιέσεις σε επικλινή πάγκο με μπάρα', 'Barbell Incline Bench Press', 'chest', ARRAY['Στήθος','Ώμοι'], 'barbell', 'intermediate', 'strength', ARRAY['Στήθος','Ώμοι','Compound'], ex_db||'Barbell_Incline_Bench_Press_-_Medium_Grip/0.jpg', ex_db||'Barbell_Incline_Bench_Press_-_Medium_Grip/1.jpg'),
   ('incline-bench-dumbbell', 'Πιέσεις σε επικλινή με αλτήρες', 'Incline Dumbbell Press', 'chest', ARRAY['Στήθος','Ώμοι'], 'dumbbell', 'beginner', 'strength', ARRAY['Στήθος','Ώμοι','Compound'], ex_db||'Incline_Dumbbell_Press/0.jpg', ex_db||'Incline_Dumbbell_Press/1.jpg'),
   ('decline-bench-dumbbell', 'Πιέσεις σε καθοδικό με αλτήρες', 'Decline Dumbbell Press', 'chest', ARRAY['Στήθος'], 'dumbbell', 'intermediate', 'strength', ARRAY['Στήθος','Compound'], ex_db||'Decline_Dumbbell_Bench_Press/0.jpg', ex_db||'Decline_Dumbbell_Bench_Press/1.jpg'),
   ('dumbbell-flyes', 'Πτερύγια με αλτήρες', 'Dumbbell Flyes', 'chest', ARRAY['Στήθος'], 'dumbbell', 'beginner', 'strength', ARRAY['Στήθος','Isolation'], ex_db||'Dumbbell_Flyes/0.jpg', ex_db||'Dumbbell_Flyes/1.jpg'),
   ('incline-flyes', 'Πτερύγια σε επικλινή πάγκο', 'Incline Dumbbell Flyes', 'chest', ARRAY['Στήθος','Ώμοι'], 'dumbbell', 'beginner', 'strength', ARRAY['Στήθος','Isolation'], ex_db||'Incline_Dumbbell_Flyes/0.jpg', ex_db||'Incline_Dumbbell_Flyes/1.jpg'),
   ('cable-crossover', 'Cable Crossover', 'Cable Crossover', 'chest', ARRAY['Στήθος'], 'cable', 'intermediate', 'strength', ARRAY['Στήθος','Isolation'], ex_db||'Cable_Crossover/0.jpg', ex_db||'Cable_Crossover/1.jpg'),
   ('pushup', 'Push-ups (κάμψεις)', 'Push-ups', 'chest', ARRAY['Στήθος','Τρικέφαλα'], 'bodyweight', 'beginner', 'strength', ARRAY['Στήθος','Τρικ.','Σωματικού βάρους'], ex_db||'Pushups/0.jpg', ex_db||'Pushups/1.jpg'),
-  ('chest-dip', 'Dips στήθους', 'Chest Dips', 'chest', ARRAY['Στήθος','Τρικέφαλα'], 'bodyweight', 'intermediate', 'strength', ARRAY['Στήθος','Τρικ.','Σωματικού βάρους'], ex_db||'Chest_Dip/0.jpg', ex_db||'Chest_Dip/1.jpg');
+  ('chest-dip', 'Dips στήθους', 'Chest Dips', 'chest', ARRAY['Στήθος','Τρικέφαλα'], 'bodyweight', 'intermediate', 'strength', ARRAY['Στήθος','Τρικ.','Σωματικού βάρους'], ex_db||'Dips_-_Chest_Version/0.jpg', ex_db||'Dips_-_Chest_Version/1.jpg');
 
 -- ΠΛΑΤΗ (10)
 insert into public.exercises (slug, name, name_en, primary_muscle, muscle_groups, equipment, level, category, tags, image_start_url, image_end_url) values
   ('deadlift', 'Άρσεις θανάτου', 'Deadlift', 'back', ARRAY['Πλάτη','Πόδια','Κορμός'], 'barbell', 'advanced', 'strength', ARRAY['Πλάτη','Πόδια','Compound'], ex_db||'Barbell_Deadlift/0.jpg', ex_db||'Barbell_Deadlift/1.jpg'),
   ('barbell-row', 'Κωπηλατική με μπάρα', 'Bent Over Barbell Row', 'back', ARRAY['Πλάτη','Δικέφαλα'], 'barbell', 'intermediate', 'strength', ARRAY['Πλάτη','Δικ.','Compound'], ex_db||'Bent_Over_Barbell_Row/0.jpg', ex_db||'Bent_Over_Barbell_Row/1.jpg'),
   ('dumbbell-row', 'Κωπηλατική με αλτήρα', 'One Arm Dumbbell Row', 'back', ARRAY['Πλάτη','Δικέφαλα'], 'dumbbell', 'beginner', 'strength', ARRAY['Πλάτη','Δικ.'], ex_db||'One-Arm_Dumbbell_Row/0.jpg', ex_db||'One-Arm_Dumbbell_Row/1.jpg'),
-  ('t-bar-row', 'T-Bar Row', 'T-Bar Row', 'back', ARRAY['Πλάτη','Δικέφαλα'], 'barbell', 'intermediate', 'strength', ARRAY['Πλάτη','Compound'], ex_db||'T-Bar_Row_/0.jpg', ex_db||'T-Bar_Row_/1.jpg'),
+  ('t-bar-row', 'T-Bar Row', 'T-Bar Row', 'back', ARRAY['Πλάτη','Δικέφαλα'], 'barbell', 'intermediate', 'strength', ARRAY['Πλάτη','Compound'], ex_db||'T-Bar_Row_with_Handle/0.jpg', ex_db||'T-Bar_Row_with_Handle/1.jpg'),
   ('pullup', 'Έλξεις (Pull-ups)', 'Pull-ups', 'back', ARRAY['Πλάτη','Δικέφαλα'], 'bodyweight', 'advanced', 'strength', ARRAY['Πλάτη','Δικ.','Σωματικού βάρους'], ex_db||'Pullups/0.jpg', ex_db||'Pullups/1.jpg'),
   ('chinup', 'Έλξεις υπτίες (Chin-ups)', 'Chin-ups', 'back', ARRAY['Πλάτη','Δικέφαλα'], 'bodyweight', 'intermediate', 'strength', ARRAY['Πλάτη','Δικ.','Σωματικού βάρους'], ex_db||'Chin-Up/0.jpg', ex_db||'Chin-Up/1.jpg'),
   ('lat-pulldown', 'Έλξεις τροχαλίας πλάτης', 'Wide-Grip Lat Pulldown', 'back', ARRAY['Πλάτη','Δικέφαλα'], 'cable', 'beginner', 'strength', ARRAY['Πλάτη','Δικ.'], ex_db||'Wide-Grip_Lat_Pulldown/0.jpg', ex_db||'Wide-Grip_Lat_Pulldown/1.jpg'),
@@ -103,24 +103,24 @@ insert into public.exercises (slug, name, name_en, primary_muscle, muscle_groups
   ('hammer-curl', 'Hammer Curls', 'Hammer Curls', 'biceps', ARRAY['Δικέφαλα','Βραχιόνιοι'], 'dumbbell', 'beginner', 'strength', ARRAY['Δικ.','Isolation'], ex_db||'Hammer_Curls/0.jpg', ex_db||'Hammer_Curls/1.jpg'),
   ('preacher-curl', 'Preacher Curl', 'Preacher Curl', 'biceps', ARRAY['Δικέφαλα'], 'barbell', 'intermediate', 'strength', ARRAY['Δικ.','Isolation'], ex_db||'Preacher_Curl/0.jpg', ex_db||'Preacher_Curl/1.jpg'),
   ('concentration-curl', 'Concentration Curl', 'Concentration Curls', 'biceps', ARRAY['Δικέφαλα'], 'dumbbell', 'beginner', 'strength', ARRAY['Δικ.','Isolation'], ex_db||'Concentration_Curls/0.jpg', ex_db||'Concentration_Curls/1.jpg'),
-  ('cable-curl', 'Δικέφαλα τροχαλίας', 'Cable Curl', 'biceps', ARRAY['Δικέφαλα'], 'cable', 'beginner', 'strength', ARRAY['Δικ.','Isolation'], ex_db||'Cable_Curl/0.jpg', ex_db||'Cable_Curl/1.jpg');
+  ('cable-curl', 'Δικέφαλα τροχαλίας', 'Cable Curl', 'biceps', ARRAY['Δικέφαλα'], 'cable', 'beginner', 'strength', ARRAY['Δικ.','Isolation'], ex_db||'Standing_Biceps_Cable_Curl/0.jpg', ex_db||'Standing_Biceps_Cable_Curl/1.jpg');
 
 -- ΤΡΙΚΕΦΑΛΑ (6)
 insert into public.exercises (slug, name, name_en, primary_muscle, muscle_groups, equipment, level, category, tags, image_start_url, image_end_url) values
   ('triceps-pushdown', 'Τρικέφαλα στο σχοινί', 'Triceps Pushdown', 'triceps', ARRAY['Τρικέφαλα'], 'cable', 'beginner', 'strength', ARRAY['Τρικ.','Isolation'], ex_db||'Triceps_Pushdown/0.jpg', ex_db||'Triceps_Pushdown/1.jpg'),
   ('skull-crusher', 'Skull Crushers', 'Lying Triceps Press', 'triceps', ARRAY['Τρικέφαλα'], 'barbell', 'intermediate', 'strength', ARRAY['Τρικ.','Isolation'], ex_db||'Lying_Triceps_Press/0.jpg', ex_db||'Lying_Triceps_Press/1.jpg'),
   ('close-grip-bench', 'Πιέσεις με στενή λαβή', 'Close-Grip Barbell Bench Press', 'triceps', ARRAY['Τρικέφαλα','Στήθος'], 'barbell', 'intermediate', 'strength', ARRAY['Τρικ.','Στήθος','Compound'], ex_db||'Close-Grip_Barbell_Bench_Press/0.jpg', ex_db||'Close-Grip_Barbell_Bench_Press/1.jpg'),
-  ('triceps-dip', 'Dips τρικεφάλων', 'Triceps Dip', 'triceps', ARRAY['Τρικέφαλα','Στήθος'], 'bodyweight', 'intermediate', 'strength', ARRAY['Τρικ.','Σωματικού βάρους'], ex_db||'Bodyweight_Triceps_Dips/0.jpg', ex_db||'Bodyweight_Triceps_Dips/1.jpg'),
+  ('triceps-dip', 'Dips τρικεφάλων', 'Triceps Dip', 'triceps', ARRAY['Τρικέφαλα','Στήθος'], 'bodyweight', 'intermediate', 'strength', ARRAY['Τρικ.','Σωματικού βάρους'], ex_db||'Dips_-_Triceps_Version/0.jpg', ex_db||'Dips_-_Triceps_Version/1.jpg'),
   ('overhead-triceps', 'Τρικέφαλα υπερώα με αλτήρα', 'Standing Dumbbell Triceps Extension', 'triceps', ARRAY['Τρικέφαλα'], 'dumbbell', 'beginner', 'strength', ARRAY['Τρικ.','Isolation'], ex_db||'Standing_Dumbbell_Triceps_Extension/0.jpg', ex_db||'Standing_Dumbbell_Triceps_Extension/1.jpg'),
-  ('rope-pushdown', 'Τρικέφαλα σχοινί (rope)', 'Triceps Pushdown Rope', 'triceps', ARRAY['Τρικέφαλα'], 'cable', 'beginner', 'strength', ARRAY['Τρικ.','Isolation'], ex_db||'Triceps_Pushdown_-_Rope_Attachment/0.jpg', ex_db||'Triceps_Pushdown_-_Rope_Attachment/1.jpg');
+  ('rope-pushdown', 'Τρικέφαλα σχοινί υπερώα', 'Cable Rope Overhead Triceps Extension', 'triceps', ARRAY['Τρικέφαλα'], 'cable', 'beginner', 'strength', ARRAY['Τρικ.','Isolation'], ex_db||'Cable_Rope_Overhead_Triceps_Extension/0.jpg', ex_db||'Cable_Rope_Overhead_Triceps_Extension/1.jpg');
 
 -- ΠΟΔΙΑ (12)
 insert into public.exercises (slug, name, name_en, primary_muscle, muscle_groups, equipment, level, category, tags, image_start_url, image_end_url) values
   ('squat-barbell', 'Κάθισμα με μπάρα (Squat)', 'Barbell Squat', 'legs', ARRAY['Τετρακέφαλα','Γλουτοί','Κορμός'], 'barbell', 'intermediate', 'strength', ARRAY['Πόδια','Γλουτοί','Compound'], ex_db||'Barbell_Squat/0.jpg', ex_db||'Barbell_Squat/1.jpg'),
-  ('front-squat', 'Front Squat', 'Barbell Front Squat', 'legs', ARRAY['Τετρακέφαλα','Κορμός'], 'barbell', 'advanced', 'strength', ARRAY['Πόδια','Compound'], ex_db||'Front_Barbell_Squat/0.jpg', ex_db||'Front_Barbell_Squat/1.jpg'),
+  ('front-squat', 'Front Squat', 'Front Squat (Clean Grip)', 'legs', ARRAY['Τετρακέφαλα','Κορμός'], 'barbell', 'advanced', 'strength', ARRAY['Πόδια','Compound'], ex_db||'Front_Squat_Clean_Grip/0.jpg', ex_db||'Front_Squat_Clean_Grip/1.jpg'),
   ('goblet-squat', 'Goblet Squat', 'Goblet Squat', 'legs', ARRAY['Τετρακέφαλα','Γλουτοί'], 'dumbbell', 'beginner', 'strength', ARRAY['Πόδια','Compound'], ex_db||'Goblet_Squat/0.jpg', ex_db||'Goblet_Squat/1.jpg'),
   ('leg-press', 'Leg Press', 'Leg Press', 'legs', ARRAY['Τετρακέφαλα','Γλουτοί'], 'machine', 'beginner', 'strength', ARRAY['Πόδια','Compound'], ex_db||'Leg_Press/0.jpg', ex_db||'Leg_Press/1.jpg'),
-  ('bulgarian-split-squat', 'Bulgarian Split Squat', 'Bulgarian Split Squat', 'legs', ARRAY['Τετρακέφαλα','Γλουτοί'], 'dumbbell', 'intermediate', 'strength', ARRAY['Πόδια','Γλουτοί'], ex_db||'Dumbbell_Bulgarian_Split_Squat/0.jpg', ex_db||'Dumbbell_Bulgarian_Split_Squat/1.jpg'),
+  ('bulgarian-split-squat', 'Bulgarian Split Squat', 'Split Squat with Dumbbells', 'legs', ARRAY['Τετρακέφαλα','Γλουτοί'], 'dumbbell', 'intermediate', 'strength', ARRAY['Πόδια','Γλουτοί'], ex_db||'Split_Squat_with_Dumbbells/0.jpg', ex_db||'Split_Squat_with_Dumbbells/1.jpg'),
   ('lunge-dumbbell', 'Lunges με αλτήρες', 'Dumbbell Lunges', 'legs', ARRAY['Τετρακέφαλα','Γλουτοί'], 'dumbbell', 'beginner', 'strength', ARRAY['Πόδια','Γλουτοί'], ex_db||'Dumbbell_Lunges/0.jpg', ex_db||'Dumbbell_Lunges/1.jpg'),
   ('walking-lunge', 'Walking Lunges', 'Walking Lunges', 'legs', ARRAY['Τετρακέφαλα','Γλουτοί'], 'bodyweight', 'beginner', 'strength', ARRAY['Πόδια','Γλουτοί'], ex_db||'Bodyweight_Walking_Lunge/0.jpg', ex_db||'Bodyweight_Walking_Lunge/1.jpg'),
   ('leg-curl', 'Leg Curl (δικέφαλα μηρών)', 'Lying Leg Curls', 'legs', ARRAY['Δικέφαλα μηρού'], 'machine', 'beginner', 'strength', ARRAY['Πόδια','Isolation'], ex_db||'Lying_Leg_Curls/0.jpg', ex_db||'Lying_Leg_Curls/1.jpg'),
@@ -144,16 +144,16 @@ insert into public.exercises (slug, name, name_en, primary_muscle, muscle_groups
 
 -- CARDIO / FUNCTIONAL (5)
 insert into public.exercises (slug, name, name_en, primary_muscle, muscle_groups, equipment, level, category, tags, image_start_url, image_end_url) values
-  ('burpee', 'Burpees', 'Burpee', 'cardio', ARRAY['Ολόσωμο'], 'bodyweight', 'intermediate', 'plyometrics', ARRAY['Cardio','Ολόσωμο','Finisher'], ex_db||'Burpee/0.jpg', ex_db||'Burpee/1.jpg'),
-  ('kettlebell-swing', 'Kettlebell Swing', 'Kettlebell Swings', 'cardio', ARRAY['Γλουτοί','Πλάτη','Κορμός'], 'kettlebell', 'intermediate', 'strength', ARRAY['Cardio','Compound','Γλουτοί'], ex_db||'Kettlebell_Swings/0.jpg', ex_db||'Kettlebell_Swings/1.jpg'),
-  ('box-jump', 'Box Jump', 'Box Jump', 'cardio', ARRAY['Τετρακέφαλα','Γλουτοί'], 'other', 'intermediate', 'plyometrics', ARRAY['Cardio','Πόδια','Plyometric'], ex_db||'Box_Jump_(Multiple_Response)/0.jpg', ex_db||'Box_Jump_(Multiple_Response)/1.jpg'),
-  ('jumping-jack', 'Jumping Jacks', 'Jumping Jacks', 'cardio', ARRAY['Ολόσωμο'], 'bodyweight', 'beginner', 'plyometrics', ARRAY['Cardio','Warmup'], ex_db||'Jumping_Jacks/0.jpg', ex_db||'Jumping_Jacks/1.jpg'),
+  ('burpee', 'Burpees', 'Burpee', 'cardio', ARRAY['Ολόσωμο'], 'bodyweight', 'intermediate', 'plyometrics', ARRAY['Cardio','Ολόσωμο','Finisher'], null, null),
+  ('kettlebell-swing', 'Kettlebell Swing', 'One-Arm Kettlebell Swings', 'cardio', ARRAY['Γλουτοί','Πλάτη','Κορμός'], 'kettlebell', 'intermediate', 'strength', ARRAY['Cardio','Compound','Γλουτοί'], ex_db||'One-Arm_Kettlebell_Swings/0.jpg', ex_db||'One-Arm_Kettlebell_Swings/1.jpg'),
+  ('box-jump', 'Box Jump', 'Box Jump', 'cardio', ARRAY['Τετρακέφαλα','Γλουτοί'], 'other', 'intermediate', 'plyometrics', ARRAY['Cardio','Πόδια','Plyometric'], ex_db||'Box_Jump_Multiple_Response/0.jpg', ex_db||'Box_Jump_Multiple_Response/1.jpg'),
+  ('jumping-jack', 'Jumping Jacks', 'Star Jump', 'cardio', ARRAY['Ολόσωμο'], 'bodyweight', 'beginner', 'plyometrics', ARRAY['Cardio','Warmup'], ex_db||'Star_Jump/0.jpg', ex_db||'Star_Jump/1.jpg'),
   ('battle-rope', 'Battle Ropes', 'Battle Ropes', 'cardio', ARRAY['Ώμοι','Κορμός'], 'other', 'intermediate', 'plyometrics', ARRAY['Cardio','Ώμοι','Finisher'], ex_db||'Battling_Ropes/0.jpg', ex_db||'Battling_Ropes/1.jpg');
 
 -- ΕΠΙΠΛΕΟΝ / STRETCHING (3)
 insert into public.exercises (slug, name, name_en, primary_muscle, muscle_groups, equipment, level, category, tags, image_start_url, image_end_url) values
   ('good-morning', 'Good Morning', 'Good Morning', 'back', ARRAY['Πλάτη','Δικέφαλα μηρού'], 'barbell', 'intermediate', 'strength', ARRAY['Πλάτη','Πόδια'], ex_db||'Good_Morning/0.jpg', ex_db||'Good_Morning/1.jpg'),
-  ('glute-bridge', 'Glute Bridge', 'Glute Bridge', 'legs', ARRAY['Γλουτοί'], 'bodyweight', 'beginner', 'strength', ARRAY['Γλουτοί','Σωματικού βάρους'], ex_db||'Butt_Lift_(Bridge)/0.jpg', ex_db||'Butt_Lift_(Bridge)/1.jpg'),
+  ('glute-bridge', 'Glute Bridge', 'Butt Lift (Bridge)', 'legs', ARRAY['Γλουτοί'], 'bodyweight', 'beginner', 'strength', ARRAY['Γλουτοί','Σωματικού βάρους'], ex_db||'Butt_Lift_Bridge/0.jpg', ex_db||'Butt_Lift_Bridge/1.jpg'),
   ('sumo-deadlift', 'Sumo Deadlift', 'Sumo Deadlift', 'back', ARRAY['Πλάτη','Πόδια','Γλουτοί'], 'barbell', 'advanced', 'strength', ARRAY['Πλάτη','Γλουτοί','Compound'], ex_db||'Sumo_Deadlift/0.jpg', ex_db||'Sumo_Deadlift/1.jpg');
 
 end $$;
