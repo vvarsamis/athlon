@@ -38,12 +38,13 @@ export default async function MyNutritionPage() {
     redirect("/trainer");
   }
 
-  // Βρες το assigned plan μέσω trainer_clients
+  // Βρες το assigned plan μέσω trainer_clients + trainer_id για barcode scanner "στείλε στον προπονητή"
   const { data: link } = await supabase
     .from("trainer_clients")
-    .select("assigned_nutrition_plan_id")
+    .select("assigned_nutrition_plan_id, trainer_id")
     .eq("client_id", user.id)
     .maybeSingle();
+  const trainerId = (link as { trainer_id: string | null } | null)?.trainer_id ?? null;
 
   let meals: Meal[] = [];
   let planName: string | undefined;
@@ -111,6 +112,7 @@ export default async function MyNutritionPage() {
       targetMin={targetMin}
       targetMax={targetMax}
       userId={user.id}
+      trainerId={trainerId}
     />
   );
 }

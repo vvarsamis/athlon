@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import { PhoneFrame } from "../../_components/PhoneFrame";
 import { BottomNav } from "../../_components/BottomNav";
+import { BarcodeScannerButton } from "../../_components/BarcodeScanner";
 
 export type MealFood = {
   emoji: string;
@@ -94,12 +95,14 @@ export default function NutritionView({
   targetMin,
   targetMax,
   userId,
+  trainerId,
 }: {
   meals?: Meal[];
   planName?: string;
   targetMin?: number | null;
   targetMax?: number | null;
   userId?: string;
+  trainerId?: string | null;
 }) {
   const meals = mealsProp && mealsProp.length > 0 ? mealsProp : fallbackMeals;
   const targetKcal = {
@@ -186,6 +189,7 @@ export default function NutritionView({
 
         <TrainerNote />
       </div>
+      {userId && <BarcodeScannerButton userId={userId} trainerId={trainerId ?? null} />}
       <BottomNav active="nutrition" userId={userId} />
     </PhoneFrame>
   );
