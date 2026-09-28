@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 import { LogoutButton } from "../_components/LogoutButton";
 import { InviteCodeCard } from "../_components/InviteCodeCard";
 import { InviteClientButton } from "../_components/InviteClientButton";
+import { BroadcastMessageButton } from "../_components/BroadcastMessageButton";
 import { createClient } from "../../lib/supabase/server";
 
 function firstName(fullName: string | null | undefined, email: string | undefined) {
@@ -1115,6 +1116,7 @@ function QuickActionsPanel({ inviteCode }: { inviteCode: string }) {
     icon: React.ReactNode;
     href?: string;
     invite?: boolean;
+    broadcast?: boolean;
     soon?: boolean;
   };
   const actions: Action[] = [
@@ -1187,9 +1189,9 @@ function QuickActionsPanel({ inviteCode }: { inviteCode: string }) {
     },
     {
       key: "broadcast",
-      soon: true,
+      broadcast: true,
       title: "Ομαδικό μήνυμα",
-      desc: "Push notification σε όλους τους πελάτες",
+      desc: "Στείλε μαζικά σε πολλούς πελάτες",
       icon: (
         <svg
           width="16"
@@ -1259,6 +1261,17 @@ function QuickActionsPanel({ inviteCode }: { inviteCode: string }) {
               >
                 {inner}
               </InviteClientButton>
+            );
+          }
+          if (a.broadcast) {
+            return (
+              <BroadcastMessageButton
+                key={a.key}
+                asDiv
+                className={`${cardBase} border-border bg-surface-2 text-text-1 hover:border-accent hover:bg-surface-1 cursor-pointer`}
+              >
+                {inner}
+              </BroadcastMessageButton>
             );
           }
           return null;

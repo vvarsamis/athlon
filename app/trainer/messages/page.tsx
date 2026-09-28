@@ -2,6 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { createClient } from "../../../lib/supabase/server";
 import { getProfile } from "../../../lib/profile";
+import { BroadcastMessageButton } from "../../_components/BroadcastMessageButton";
 
 type ClientRow = {
   client_id: string;
@@ -88,7 +89,7 @@ export default async function TrainerMessagesPage() {
               <polyline points="15 18 9 12 15 6" />
             </svg>
           </Link>
-          <div>
+          <div className="min-w-0 flex-1">
             <div className="text-[11px] font-bold uppercase tracking-[0.1em] text-text-3">
               Trainer <span className="text-accent">·</span> Μηνύματα
             </div>
@@ -100,6 +101,12 @@ export default async function TrainerMessagesPage() {
               )}
             </h1>
           </div>
+          <BroadcastMessageButton className="flex items-center gap-2 rounded-[10px] bg-accent px-3.5 py-2.5 text-[13px] font-bold text-[#0A0A0A] shadow-[0_0_20px_rgba(197,255,0,0.3)] hover:shadow-[0_0_32px_rgba(197,255,0,0.5)]">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M3 11l19-9-9 19-2-8-8-2z" />
+            </svg>
+            Ομαδικό μήνυμα
+          </BroadcastMessageButton>
         </div>
       </div>
 
