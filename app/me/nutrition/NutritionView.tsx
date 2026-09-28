@@ -4,6 +4,10 @@ import { useMemo, useState } from "react";
 import { PhoneFrame } from "../../_components/PhoneFrame";
 import { BottomNav } from "../../_components/BottomNav";
 import { BarcodeScannerButton } from "../../_components/BarcodeScanner";
+import {
+  NutritionCalendarView,
+  type WeeklyPlanInfo,
+} from "../../_components/NutritionCalendarView";
 
 export type MealFood = {
   emoji: string;
@@ -96,6 +100,8 @@ export default function NutritionView({
   targetMax,
   userId,
   trainerId,
+  weeklyPlans = [],
+  todayIso,
 }: {
   meals?: Meal[];
   planName?: string;
@@ -103,6 +109,8 @@ export default function NutritionView({
   targetMax?: number | null;
   userId?: string;
   trainerId?: string | null;
+  weeklyPlans?: WeeklyPlanInfo[];
+  todayIso?: string;
 }) {
   const meals = mealsProp && mealsProp.length > 0 ? mealsProp : fallbackMeals;
   const targetKcal = {
@@ -188,6 +196,12 @@ export default function NutritionView({
         </div>
 
         <TrainerNote />
+
+        {todayIso && weeklyPlans.length > 0 && (
+          <div className="mt-6">
+            <NutritionCalendarView todayIso={todayIso} weeklyPlans={weeklyPlans} />
+          </div>
+        )}
       </div>
       {userId && <BarcodeScannerButton userId={userId} trainerId={trainerId ?? null} />}
       <BottomNav active="nutrition" userId={userId} />

@@ -117,6 +117,23 @@ export default async function MyNutritionPage() {
     }));
   }
 
+  // Fetch weekly nutrition schedule για το ημερολόγιο διατροφής
+  const { data: weekRows } = await supabase
+    .from("client_weekly_schedule")
+    .select("day_of_week, plan:nutrition_plans(name, target_kcal)")
+    .eq("client_id", user.id);
+  const weeklyPlans = ((weekRows as unknown as Array<{
+    day_of_week: number;
+    plan: { name: string; target_kcal: number | null } | null;
+  }>) ?? []).map((r) => ({
+    day: r.day_of_week,
+    planName: r.plan?.name ?? null,
+    targetKcal: r.plan?.target_kcal ?? null,
+  }));
+
+  const nowDate = new Date();
+  const todayIso = `${nowDate.getFullYear()}-${String(nowDate.getMonth() + 1).padStart(2, "0")}-${String(nowDate.getDate()).padStart(2, "0")}`;
+
   return (
     <NutritionView
       meals={meals}
@@ -125,6 +142,8 @@ export default async function MyNutritionPage() {
       targetMax={targetMax}
       userId={user.id}
       trainerId={trainerId}
+      weeklyPlans={weeklyPlans}
+      todayIso={todayIso}
     />
   );
 }

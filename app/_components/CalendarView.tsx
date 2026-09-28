@@ -20,14 +20,22 @@ export type AssignedProgram = {
   exerciseCount: number;
 } | null;
 
+export type WeeklyProgramInfo = {
+  day: number; // 0=Δευτέρα .. 6=Κυριακή
+  programTitle: string | null;
+  programName: string | null;
+};
+
 export function CalendarView({
   todayIso,
   sessions,
   assignedProgram,
+  weeklyPrograms = [],
 }: {
   todayIso: string;
   sessions: CalendarSession[];
   assignedProgram: AssignedProgram;
+  weeklyPrograms?: WeeklyProgramInfo[];
 }) {
   const today = new Date(todayIso);
   const [viewMonth, setViewMonth] = useState<{ year: number; month: number }>({
@@ -48,6 +56,18 @@ export function CalendarView({
     }
     return map;
   }, [sessions]);
+
+  // Lookup weekly plan by day_of_week
+  const weeklyByDay = useMemo(() => {
+    const map = new Map<number, WeeklyProgramInfo>();
+    for (const w of weeklyPrograms) map.set(w.day, w);
+    return map;
+  }, [weeklyPrograms]);
+
+  function dayOfWeekOf(iso: string): number {
+    // 0=Δευτέρα .. 6=Κυριακή
+    return (new Date(iso).getDay() + 6) % 7;
+  }
 
   const monthLabel = new Date(viewMonth.year, viewMonth.month, 1).toLocaleDateString(
     "el-GR",
@@ -265,44 +285,55 @@ export function CalendarView({
               );
             })}
           </div>
-        ) : isSelectedToday && assignedProgram ? (
-          <div className="rounded-xl border border-accent/20 bg-accent/[0.06] p-4">
-            <div className="mb-2 text-[11px] font-bold uppercase tracking-[0.1em] text-accent">
-              Πρόγραμμα σήμερα
+        ) : (() => {
+          // Πάρε το πρόγραμμα της επιλεγμένης μέρας από το weekly schedule
+          const selectedDow = dayOfWeekOf(selectedIso);
+          const weeklyEntry = weeklyByDay.get(selectedDow);
+          const selectedProgramTitle = weeklyEntry?.programTitle ??
+            (isSelectedToday && assignedProgram ? assignedProgram.title : null);
+          const selectedProgramName = weeklyEntry?.programName ??
+            (isSelectedToday && assignedProgram ? assignedProgram.name : null);
+
+          if (!selectedProgramTitle) {
+            return (
+              <div className="rounded-xl border border-border bg-surface-2 p-4 text-center text-[12px] text-text-3">
+                {isSelectedFuture
+                  ? "Ξεκούραση αυτή τη μέρα."
+                  : isSelectedToday
+                  ? "Ξεκούραση σήμερα."
+                  : "Δεν έγινε προπόνηση αυτή την ημέρα."}
+              </div>
+            );
+          }
+          return (
+            <div className={`rounded-xl border p-4 ${isSelectedToday ? "border-accent/20 bg-accent/[0.06]" : "border-border bg-surface-2"}`}>
+              <div className={`mb-2 text-[11px] font-bold uppercase tracking-[0.1em] ${isSelectedToday ? "text-accent" : "text-text-3"}`}>
+                {isSelectedToday ? "Πρόγραμμα σήμερα" : isSelectedFuture ? "Πρόγραμμα ημέρας" : "Είχε προγραμματιστεί"}
+              </div>
+              <div className="text-[14px] font-extrabold tracking-[-0.01em]">
+                {selectedProgramTitle}
+              </div>
+              {selectedProgramName && (
+                <div className="mt-0.5 text-[11px] text-text-3">
+                  {selectedProgramName}
+                  {isSelectedToday && assignedProgram && assignedProgram.duration_min ? ` · ${assignedProgram.duration_min}'` : ""}
+                  {isSelectedToday && assignedProgram && assignedProgram.exerciseCount > 0 ? ` · ${assignedProgram.exerciseCount} ασκήσεις` : ""}
+                </div>
+              )}
+              {isSelectedToday && (
+                <Link
+                  href="/workout"
+                  className="mt-3 inline-flex items-center gap-1.5 rounded-lg bg-accent px-3 py-2 text-[12px] font-extrabold text-[#0A0A0A]"
+                >
+                  Ξεκίνα προπόνηση
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                    <polyline points="9 18 15 12 9 6" />
+                  </svg>
+                </Link>
+              )}
             </div>
-            <div className="text-[14px] font-extrabold tracking-[-0.01em]">
-              {assignedProgram.title}
-            </div>
-            <div className="mt-0.5 text-[11px] text-text-3">
-              {[
-                assignedProgram.name,
-                assignedProgram.duration_min ? `${assignedProgram.duration_min}'` : null,
-                assignedProgram.exerciseCount > 0
-                  ? `${assignedProgram.exerciseCount} ασκήσεις`
-                  : null,
-              ]
-                .filter(Boolean)
-                .join(" · ")}
-            </div>
-            <Link
-              href="/workout"
-              className="mt-3 inline-flex items-center gap-1.5 rounded-lg bg-accent px-3 py-2 text-[12px] font-extrabold text-[#0A0A0A]"
-            >
-              Ξεκίνα προπόνηση
-              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                <polyline points="9 18 15 12 9 6" />
-              </svg>
-            </Link>
-          </div>
-        ) : isSelectedFuture && assignedProgram ? (
-          <div className="rounded-xl border border-border bg-surface-2 p-4 text-[12px] text-text-3">
-            Το πρόγραμμά σου <strong className="font-bold text-text-1">{assignedProgram.title}</strong> θα είναι διαθέσιμο και αυτή την ημέρα.
-          </div>
-        ) : (
-          <div className="py-3 text-center text-[12px] text-text-3">
-            {isSelectedFuture ? "Δεν έχει προγραμματιστεί κάτι." : "Δεν έγινε προπόνηση αυτή την ημέρα."}
-          </div>
-        )}
+          );
+        })()}
       </div>
     </>
   );
