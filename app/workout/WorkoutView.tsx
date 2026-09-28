@@ -11,16 +11,10 @@ type SetState = "done" | "active" | "pending";
 
 type WorkoutSet = {
   num: string;
-  reps: string;
-  repsUnit: string;
-  weight: string;
+  targetReps: string;
 };
 
-const fallbackSets: WorkoutSet[] = [
-  { num: "01", reps: "12", repsUnit: "reps", weight: "22.5" },
-  { num: "02", reps: "10", repsUnit: "reps", weight: "25.0" },
-  { num: "03", reps: "10", repsUnit: "target", weight: "25.0" },
-];
+type SetInput = { reps: string; weight: string };
 
 export type WorkoutExercise = {
   id: string;
@@ -44,9 +38,7 @@ type Props = {
 function buildSets(count: number, reps: string | null): WorkoutSet[] {
   return Array.from({ length: count }).map((_, i) => ({
     num: String(i + 1).padStart(2, "0"),
-    reps: reps ?? "10",
-    repsUnit: i === count - 1 ? "target" : "reps",
-    weight: "—",
+    targetReps: reps ?? "10",
   }));
 }
 
@@ -64,6 +56,14 @@ export default function WorkoutView({
   const [restActive, setRestActive] = useState(true);
   const [savingSession, setSavingSession] = useState(false);
   const [saveErr, setSaveErr] = useState<string | null>(null);
+  // Start time — χρειάζεται για duration_sec
+  const [startedAt] = useState<Date>(() => new Date());
+
+  // Per-exercise state:
+  //   doneCountByEx: πόσα σετ έχουν ολοκληρωθεί για κάθε άσκηση
+  //   setInputs: reps + weight ανά (exIdx, setIdx)
+  const [doneCountByEx, setDoneCountByEx] = useState<Record<number, number>>({});
+  const [setInputs, setSetInputs] = useState<Record<string, SetInput>>({});
 
   const currentEx: WorkoutExercise | undefined = exercises?.[currentIdx];
 
@@ -71,9 +71,25 @@ export default function WorkoutView({
   const setsCount = currentEx?.sets ? parseInt(currentEx.sets, 10) || 3 : 3;
   const currentSets: WorkoutSet[] = hasRealProgram
     ? buildSets(setsCount, currentEx?.reps ?? null)
-    : fallbackSets;
+    : buildSets(3, "10");
 
-  const [doneIdx, setDoneIdx] = useState(hasRealProgram ? 0 : 2);
+  const doneIdx = doneCountByEx[currentIdx] ?? 0;
+  function setDoneIdx(v: number | ((prev: number) => number)) {
+    setDoneCountByEx((prev) => ({
+      ...prev,
+      [currentIdx]: typeof v === "function" ? v(prev[currentIdx] ?? 0) : v,
+    }));
+  }
+
+  function getInput(exIdx: number, setIdx: number): SetInput {
+    return setInputs[`${exIdx}-${setIdx}`] ?? { reps: "", weight: "" };
+  }
+  function patchInput(exIdx: number, setIdx: number, patch: Partial<SetInput>) {
+    setSetInputs((prev) => {
+      const key = `${exIdx}-${setIdx}`;
+      return { ...prev, [key]: { ...(prev[key] ?? { reps: "", weight: "" }), ...patch } };
+    });
+  }
 
   const states: SetState[] = currentSets.map((_, i) => {
     if (i < doneIdx) return "done";
@@ -98,20 +114,31 @@ export default function WorkoutView({
   const isLastExercise = currentIdx >= totalExercises - 1;
   const canFinishWorkout = hasRealProgram && programId != null;
 
+  function ensureInputDefaults(exIdx: number, setIdx: number) {
+    // Αν ο user δεν έχει γράψει τίποτα, βάλε target reps και 0 kg ως default
+    const cur = getInput(exIdx, setIdx);
+    const patch: Partial<SetInput> = {};
+    if (!cur.reps.trim()) patch.reps = currentSets[setIdx]?.targetReps ?? "";
+    if (!cur.weight.trim()) patch.weight = "0";
+    if (patch.reps !== undefined || patch.weight !== undefined) {
+      patchInput(exIdx, setIdx, patch);
+    }
+  }
+
   function completeCurrentSet() {
     if (doneIdx < totalSets) {
+      ensureInputDefaults(currentIdx, doneIdx);
       setDoneIdx((i) => i + 1);
       setRestActive(true);
     } else if (!isLastExercise) {
-      // Move to next exercise
       setCurrentIdx((i) => i + 1);
-      setDoneIdx(0);
       setRestActive(false);
     }
   }
 
   function toggleSet(i: number) {
     if (i < doneIdx) {
+      // Un-completing a set — allow going back
       setDoneIdx(i);
     } else if (i === doneIdx) {
       completeCurrentSet();
@@ -119,7 +146,7 @@ export default function WorkoutView({
   }
 
   async function finishWorkout() {
-    if (!canFinishWorkout || !programId) return;
+    if (!canFinishWorkout || !programId || !exercises) return;
     setSavingSession(true);
     setSaveErr(null);
     const supabase = createClient();
@@ -130,22 +157,76 @@ export default function WorkoutView({
       setSaveErr("Δεν είσαι συνδεδεμένος.");
       return;
     }
-    const startedAt = new Date().toISOString();
-    const completedAt = startedAt; // instant complete for MVP
-    const { error } = await supabase.from("workout_sessions").insert({
+    const completedAt = new Date();
+    const durationSec = Math.max(
+      0,
+      Math.round((completedAt.getTime() - startedAt.getTime()) / 1000),
+    );
+    const sessionId = crypto.randomUUID();
+
+    // 1. Insert session
+    const { error: sessErr } = await supabase.from("workout_sessions").insert({
+      id: sessionId,
       client_id: userId,
       program_id: programId,
       program_title: programTitle,
       program_name: programName,
-      started_at: startedAt,
-      completed_at: completedAt,
-      duration_sec: 0,
+      started_at: startedAt.toISOString(),
+      completed_at: completedAt.toISOString(),
+      duration_sec: durationSec,
     });
-    if (error) {
+    if (sessErr) {
       setSavingSession(false);
-      setSaveErr(error.message);
+      setSaveErr(sessErr.message);
       return;
     }
+
+    // 2. Batch insert σετ — για κάθε άσκηση, για κάθε "done" σετ
+    const rows: {
+      session_id: string;
+      program_exercise_id: string;
+      exercise_position: number;
+      exercise_name: string;
+      set_number: number;
+      target_reps: string | null;
+      target_weight_kg: null;
+      actual_reps: number | null;
+      actual_weight_kg: number | null;
+      done_at: string;
+    }[] = [];
+    exercises.forEach((ex, exIdx) => {
+      const doneCount = doneCountByEx[exIdx] ?? 0;
+      const exSetsCount = ex.sets ? parseInt(ex.sets, 10) || 3 : 3;
+      for (let s = 0; s < Math.min(doneCount, exSetsCount); s++) {
+        const inp = setInputs[`${exIdx}-${s}`] ?? { reps: "", weight: "" };
+        const actualReps = parseInt(inp.reps, 10);
+        const actualWeight = parseFloat(inp.weight);
+        rows.push({
+          session_id: sessionId,
+          program_exercise_id: ex.id,
+          exercise_position: exIdx,
+          exercise_name: ex.name,
+          set_number: s + 1,
+          target_reps: ex.reps,
+          target_weight_kg: null,
+          actual_reps: Number.isFinite(actualReps) ? actualReps : null,
+          actual_weight_kg: Number.isFinite(actualWeight) ? actualWeight : null,
+          done_at: completedAt.toISOString(),
+        });
+      }
+    });
+
+    if (rows.length > 0) {
+      const { error: setsErr } = await supabase
+        .from("workout_session_sets")
+        .insert(rows);
+      if (setsErr) {
+        setSavingSession(false);
+        setSaveErr(`Session σώθηκε αλλά τα σετ απέτυχαν: ${setsErr.message}`);
+        return;
+      }
+    }
+
     router.push("/home?workout=done");
     router.refresh();
   }
@@ -195,7 +276,13 @@ export default function WorkoutView({
 
         <ExerciseVisual img={displayImg} imgAlt={displayImgAlt} />
 
-        <SetsList sets={currentSets} states={states} onToggle={toggleSet} />
+        <SetsList
+          sets={currentSets}
+          states={states}
+          onToggle={toggleSet}
+          getInput={(setIdx) => getInput(currentIdx, setIdx)}
+          onInputChange={(setIdx, patch) => patchInput(currentIdx, setIdx, patch)}
+        />
 
         <CompleteButton
           allDone={allSetsDone && isLastExercise}
@@ -459,21 +546,32 @@ function SetsList({
   sets,
   states,
   onToggle,
+  getInput,
+  onInputChange,
 }: {
   sets: WorkoutSet[];
   states: SetState[];
   onToggle: (i: number) => void;
+  getInput: (setIdx: number) => SetInput;
+  onInputChange: (setIdx: number, patch: Partial<SetInput>) => void;
 }) {
   return (
     <div className="px-5 pb-4 pt-6">
-      <div className="grid grid-cols-[36px_1fr_1fr_60px] gap-2 px-3 pb-2 text-[10px] font-bold uppercase tracking-[0.12em] text-text-3">
+      <div className="grid grid-cols-[36px_1fr_1fr_44px] gap-2 px-3 pb-2 text-[10px] font-bold uppercase tracking-[0.12em] text-text-3">
         <span>ΣΕΤ</span>
         <span>ΕΠΑΝ.</span>
-        <span>ΒΑΡΟΣ</span>
+        <span>ΒΑΡΟΣ (kg)</span>
         <span />
       </div>
       {sets.map((s, i) => (
-        <SetRow key={s.num} set={s} state={states[i]} onClick={() => onToggle(i)} />
+        <SetRow
+          key={s.num}
+          set={s}
+          state={states[i]}
+          input={getInput(i)}
+          onInputChange={(patch) => onInputChange(i, patch)}
+          onToggle={() => onToggle(i)}
+        />
       ))}
     </div>
   );
@@ -482,69 +580,82 @@ function SetsList({
 function SetRow({
   set,
   state,
-  onClick,
+  input,
+  onInputChange,
+  onToggle,
 }: {
   set: WorkoutSet;
   state: SetState;
-  onClick: () => void;
+  input: SetInput;
+  onInputChange: (patch: Partial<SetInput>) => void;
+  onToggle: () => void;
 }) {
   const base =
-    "mb-2 grid grid-cols-[36px_1fr_1fr_60px] items-center gap-2 rounded-2xl border px-3 py-3.5 transition-all cursor-pointer";
+    "mb-2 grid grid-cols-[36px_1fr_1fr_44px] items-center gap-2 rounded-2xl border px-3 py-2.5 transition-all";
   const variant =
     state === "done"
-      ? "border-border bg-surface-1 opacity-60"
+      ? "border-border bg-surface-1"
       : state === "active"
       ? "border-accent bg-surface-2 shadow-[0_0_0_1px_var(--accent),0_0_24px_rgba(197,255,0,0.15)]"
-      : "border-border bg-surface-1";
-  const numColor = state === "active" ? "text-accent" : "text-text-2";
-  const valColor =
-    state === "active"
-      ? "text-accent"
-      : state === "done"
-      ? "text-text-2"
-      : "text-text-1";
+      : "border-border bg-surface-1 opacity-70";
+  const numColor = state === "active" ? "text-accent" : state === "done" ? "text-success" : "text-text-2";
+
+  const isEditable = state !== "pending";
+  const inputCls =
+    "w-full min-w-0 rounded-lg border border-transparent bg-surface-3 px-2 py-1.5 text-center font-mono text-[15px] font-bold text-text-1 outline-none focus:border-accent";
+
   return (
-    <button type="button" onClick={onClick} className={`w-full text-left ${base} ${variant}`}>
+    <div className={`${base} ${variant}`}>
       <div className={`font-mono text-sm font-extrabold ${numColor}`}>
         {set.num}
       </div>
-      <div className={`font-mono text-base font-bold ${valColor}`}>
-        {set.reps}
-        <span className="ml-[3px] text-[11px] font-semibold text-text-3">
-          {set.repsUnit}
-        </span>
+      <div className="flex items-center gap-1">
+        <input
+          type="text"
+          inputMode="numeric"
+          value={input.reps}
+          onChange={(e) => onInputChange({ reps: e.target.value })}
+          placeholder={set.targetReps}
+          disabled={!isEditable}
+          className={inputCls}
+        />
       </div>
-      <div className={`font-mono text-base font-bold ${valColor}`}>
-        {set.weight}
-        <span className="ml-[3px] text-[11px] font-semibold text-text-3">
-          kg
-        </span>
+      <div className="flex items-center gap-1">
+        <input
+          type="text"
+          inputMode="decimal"
+          value={input.weight}
+          onChange={(e) => onInputChange({ weight: e.target.value })}
+          placeholder="kg"
+          disabled={!isEditable}
+          className={inputCls}
+        />
       </div>
-      <div
-        className={`ml-auto flex h-7 w-7 items-center justify-center rounded-lg border-[1.5px] ${
+      <button
+        type="button"
+        onClick={onToggle}
+        aria-label={state === "done" ? "Άκυρο σετ" : "Ολοκλήρωση σετ"}
+        className={`ml-auto flex h-9 w-9 items-center justify-center rounded-lg border-[1.5px] transition-colors ${
           state === "done"
             ? "border-accent bg-accent text-[#0A0A0A]"
             : state === "active"
-            ? "border-accent"
-            : "border-surface-3"
+            ? "border-accent bg-transparent text-accent hover:bg-accent/[0.12]"
+            : "border-surface-3 text-text-3"
         }`}
       >
-        {state === "done" && (
-          <svg
-            width="14"
-            height="14"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="3"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          >
+        {state === "done" ? (
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
             <polyline points="20 6 9 17 4 12" />
           </svg>
+        ) : state === "active" ? (
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+            <polyline points="20 6 9 17 4 12" />
+          </svg>
+        ) : (
+          <span className="text-[11px] font-bold">·</span>
         )}
-      </div>
-    </button>
+      </button>
+    </div>
   );
 }
 

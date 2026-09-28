@@ -182,7 +182,7 @@ export default async function ClientDetailPage({
         </div>
 
         <div className="grid grid-cols-1 gap-5">
-          <RecentActivityPanel sessions={sessions} />
+          <RecentActivityPanel sessions={sessions} clientId={clientId} />
         </div>
       </div>
     </div>
@@ -845,7 +845,13 @@ function MessagesPanel({
   );
 }
 
-function RecentActivityPanel({ sessions }: { sessions: SessionRow[] }) {
+function RecentActivityPanel({
+  sessions,
+  clientId,
+}: {
+  sessions: SessionRow[];
+  clientId: string;
+}) {
   if (sessions.length === 0) {
     return (
       <Panel title="Πρόσφατη δραστηριότητα" subtitle="Καμία προπόνηση ακόμα">
@@ -858,7 +864,7 @@ function RecentActivityPanel({ sessions }: { sessions: SessionRow[] }) {
   return (
     <Panel
       title="Πρόσφατη δραστηριότητα"
-      subtitle={`Τελευταίες ${sessions.length} ${sessions.length === 1 ? "προπόνηση" : "προπονήσεις"}`}
+      subtitle={`Τελευταίες ${sessions.length} ${sessions.length === 1 ? "προπόνηση" : "προπονήσεις"} — κλικ για ανάλυση σετ`}
     >
       <div className="py-2">
         {sessions.map((s) => {
@@ -872,9 +878,10 @@ function RecentActivityPanel({ sessions }: { sessions: SessionRow[] }) {
           const durationMin =
             s.duration_sec != null ? Math.round(s.duration_sec / 60) : null;
           return (
-            <div
+            <Link
               key={s.id}
-              className="flex items-center gap-3 px-[22px] py-3"
+              href={`/trainer/clients/${clientId}/sessions/${s.id}`}
+              className="flex items-center gap-3 px-[22px] py-3 transition-colors hover:bg-surface-2"
             >
               <ActivityIcon status={isCompleted ? "completed" : "partial"} />
               <div className="min-w-0 flex-1">
@@ -892,7 +899,7 @@ function RecentActivityPanel({ sessions }: { sessions: SessionRow[] }) {
               <span className="flex-shrink-0 font-mono text-[11px] font-semibold text-text-3">
                 {when}
               </span>
-            </div>
+            </Link>
           );
         })}
       </div>
