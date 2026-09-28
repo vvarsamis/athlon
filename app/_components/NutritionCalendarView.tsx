@@ -141,7 +141,11 @@ export function NutritionCalendarView({
               {hasPlan && (
                 <span
                   className={`mt-0.5 h-1 w-1 rounded-full ${
-                    isSelected ? "bg-[#0A0A0A]" : "bg-accent"
+                    isSelected
+                      ? "bg-[#0A0A0A]"
+                      : isFuture
+                      ? "border border-accent"
+                      : "bg-accent"
                   }`}
                 />
               )}

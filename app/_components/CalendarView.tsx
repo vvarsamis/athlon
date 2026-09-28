@@ -177,6 +177,9 @@ export function CalendarView({
           const isTodayCell = key === todayKey;
           const isSelected = key === selectedIso;
           const isFuture = new Date(key) > today && !isTodayCell;
+          const dowOfCell = (new Date(key).getDay() + 6) % 7;
+          const hasScheduledProgram =
+            !hasSession && weeklyByDay.get(dowOfCell)?.programTitle != null;
           return (
             <button
               key={key}
@@ -195,13 +198,19 @@ export function CalendarView({
               }`}
             >
               <span>{cell.day}</span>
-              {hasSession && (
+              {hasSession ? (
                 <span
                   className={`mt-0.5 h-1 w-1 rounded-full ${
                     isSelected ? "bg-[#0A0A0A]" : "bg-accent"
                   }`}
                 />
-              )}
+              ) : hasScheduledProgram ? (
+                <span
+                  className={`mt-0.5 h-1 w-1 rounded-full border ${
+                    isSelected ? "border-[#0A0A0A]" : "border-accent"
+                  }`}
+                />
+              ) : null}
               {sessionCount > 1 && (
                 <span
                   className={`absolute right-1 top-1 font-mono text-[8px] font-extrabold ${
@@ -217,10 +226,14 @@ export function CalendarView({
       </div>
 
       {/* Legend */}
-      <div className="mx-5 mt-3 flex items-center gap-4 text-[10px] font-semibold text-text-3">
+      <div className="mx-5 mt-3 flex flex-wrap items-center gap-4 text-[10px] font-semibold text-text-3">
         <div className="flex items-center gap-1.5">
           <span className="h-1.5 w-1.5 rounded-full bg-accent" />
-          Προπόνηση
+          Ολοκληρώθηκε
+        </div>
+        <div className="flex items-center gap-1.5">
+          <span className="h-1.5 w-1.5 rounded-full border border-accent" />
+          Προγραμματισμένη
         </div>
         <div className="flex items-center gap-1.5">
           <span className="h-2.5 w-2.5 rounded-md border border-accent bg-accent/[0.08]" />
