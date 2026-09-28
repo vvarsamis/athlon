@@ -45,10 +45,6 @@ export default async function HomePage() {
     kcal: number | null;
     exerciseCount: number;
   } | null = null;
-  let dbgToday = -1;
-  let dbgScheduleRow = "N/A";
-  let dbgFallback = "N/A";
-  let dbgFinalProgramId = "N/A";
   if (user) {
     const { data: link } = await supabase
       .from("trainer_clients")
@@ -65,24 +61,16 @@ export default async function HomePage() {
 
     // Resolve today's program: weekly_schedule πρώτο, μετά fallback στο assigned_program_id
     const today = (new Date().getDay() + 6) % 7; // Δευτέρα = 0
-    dbgToday = today;
-    const { data: scheduleRow, error: scheduleErr } = await supabase
+    const { data: scheduleRow } = await supabase
       .from("client_weekly_schedule")
       .select("program_id")
       .eq("client_id", user.id)
       .eq("day_of_week", today)
       .maybeSingle();
-    dbgScheduleRow = scheduleErr
-      ? `ERR:${scheduleErr.code}`
-      : scheduleRow
-      ? `${(scheduleRow as { program_id: string | null }).program_id?.slice(0, 8) ?? "null"}`
-      : "empty";
-    dbgFallback = linkAny?.assigned_program_id?.slice(0, 8) ?? "null";
     const todayProgramId =
       (scheduleRow as { program_id: string | null } | null)?.program_id ??
       linkAny?.assigned_program_id ??
       null;
-    dbgFinalProgramId = todayProgramId?.slice(0, 8) ?? "NULL";
 
     if (todayProgramId) {
       const { data: prog } = await supabase
@@ -192,10 +180,6 @@ export default async function HomePage() {
 
         <SectionTitle title="ΣΗΜΕΡΑ" />
         <TodayCard trainerName={trainerName} program={assignedProgram} />
-        {/* DEBUG: dev-time only marker */}
-        <div className="mx-5 mt-2 rounded-lg border border-warning/30 bg-warning/[0.06] px-3 py-2 font-mono text-[10px] text-warning">
-          🐛 DEBUG · today={dbgToday} · schedRow={dbgScheduleRow} · fallback={dbgFallback} · finalId={dbgFinalProgramId}
-        </div>
 
         <StatsGrid
           completedThisWeek={sessionsThisWeek}
